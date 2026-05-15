@@ -1,98 +1,130 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Colors } from '@/constants/colors';
+import { Fonts } from '@/constants/fonts';
+import { useSessionStore } from '@/stores/sessionStore';
+import { useVoiceDetection } from '@/hooks/useVoiceDetection';
+import { CounterCircle } from '@/components/session/CounterCircle';
+import { ListeningIndicator } from '@/components/session/ListeningIndicator';
+import { ShockwaveRing } from '@/components/session/ShockwaveRing';
 
-export default function HomeScreen() {
+export default function SessionScreen() {
+  const { isActive, count, startSession, stopSession, increment } = useSessionStore();
+  const detectionSignal = useSharedValue(0);
+
+  const handleDetect = useCallback(() => {
+    increment();
+    detectionSignal.value = detectionSignal.value + 1;
+  }, [increment, detectionSignal]);
+
+  const { start, stop } = useVoiceDetection(handleDetect);
+
+  const handleStart = useCallback(async () => {
+    startSession();
+    await start();
+  }, [startSession, start]);
+
+  const handleStop = useCallback(async () => {
+    await stop();
+    stopSession();
+  }, [stop, stopSession]);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      {isActive ? (
+        <View style={styles.activeContainer}>
+          <View style={styles.counterWrap}>
+            <ShockwaveRing detectionSignal={detectionSignal} />
+            <CounterCircle count={count} detectionSignal={detectionSignal} />
+          </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+          <ListeningIndicator />
+
+          <Pressable style={styles.stopButton} onPress={handleStop}>
+            <Ionicons name="stop-circle-outline" size={20} color={Colors.textSecondary} />
+            <Text style={styles.stopLabel}>Stop</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.idleContainer}>
+          <Text style={styles.arabicPhrase}>أَسْتَغْفِرُ اللّٰه</Text>
+          <Text style={styles.latinPhrase}>Astaghfirullah</Text>
+          <Pressable style={styles.startButton} onPress={handleStart}>
+            <Ionicons name="mic" size={30} color={Colors.background} />
+          </Pressable>
+          <Text style={styles.startHint}>Tap to begin your session</Text>
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Active state ─────────────────────────────────────────────────────────
+  activeContainer: {
+    alignItems: 'center',
+    gap: 36,
+  },
+  counterWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    paddingHorizontal: 24,
+    paddingVertical: 11,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  stopLabel: {
+    fontFamily: Fonts.uiMedium,
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  // ── Idle state ────────────────────────────────────────────────────────────
+  idleContainer: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  arabicPhrase: {
+    fontFamily: Fonts.arabic,
+    fontSize: 38,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  latinPhrase: {
+    fontFamily: Fonts.displayLight,
+    fontSize: 16,
+    color: Colors.textSecondary,
+    letterSpacing: 2.5,
+    marginBottom: 28,
+  },
+  startButton: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: Colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startHint: {
+    fontFamily: Fonts.ui,
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 8,
   },
 });
