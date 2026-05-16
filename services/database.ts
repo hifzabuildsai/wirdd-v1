@@ -1,6 +1,8 @@
+import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
-const db = SQLite.openDatabaseSync('wirdd.db');
+const isWeb = Platform.OS === 'web';
+const db = isWeb ? null : SQLite.openDatabaseSync('wirdd.db');
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +29,8 @@ export interface DailySummary {
 // ── Schema ─────────────────────────────────────────────────────────────────
 
 export function initDatabase(): void {
-  db.execSync(`
+  if (isWeb) return;
+  db!.execSync(`
     CREATE TABLE IF NOT EXISTS sessions (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       local_id     TEXT    UNIQUE NOT NULL,
@@ -53,7 +56,8 @@ export function initDatabase(): void {
 // ── Sessions ───────────────────────────────────────────────────────────────
 
 export function insertSession(localId: string, startedAt: number, phraseId: string): number {
-  const result = db.runSync(
+  if (isWeb) return 0;
+  const result = db!.runSync(
     'INSERT INTO sessions (local_id, started_at, phrase_id) VALUES (?, ?, ?)',
     [localId, startedAt, phraseId],
   );
@@ -61,27 +65,31 @@ export function insertSession(localId: string, startedAt: number, phraseId: stri
 }
 
 export function endSession(localId: string, endedAt: number, count: number, mood?: string): void {
-  db.runSync(
+  if (isWeb) return;
+  db!.runSync(
     'UPDATE sessions SET ended_at = ?, count = ?, mood = ? WHERE local_id = ?',
     [endedAt, count, mood ?? null, localId],
   );
 }
 
 export function getSessionsByDate(dateYYYYMMDD: string): Session[] {
+  if (isWeb) return [];
   const dayStart = new Date(dateYYYYMMDD).setHours(0, 0, 0, 0);
   const dayEnd = new Date(dateYYYYMMDD).setHours(23, 59, 59, 999);
-  return db.getAllSync<Session>(
+  return db!.getAllSync<Session>(
     'SELECT * FROM sessions WHERE started_at BETWEEN ? AND ? ORDER BY started_at DESC',
     [dayStart, dayEnd],
   );
 }
 
 export function getUnsyncedSessions(): Session[] {
-  return db.getAllSync<Session>('SELECT * FROM sessions WHERE synced = 0 AND ended_at IS NOT NULL');
+  if (isWeb) return [];
+  return db!.getAllSync<Session>('SELECT * FROM sessions WHERE synced = 0 AND ended_at IS NOT NULL');
 }
 
 export function markSessionSynced(localId: string): void {
-  db.runSync('UPDATE sessions SET synced = 1 WHERE local_id = ?', [localId]);
+  if (isWeb) return;
+  db!.runSync('UPDATE sessions SET synced = 1 WHERE local_id = ?', [localId]);
 }
 
 // ── Daily summaries ────────────────────────────────────────────────────────
@@ -93,7 +101,8 @@ export function upsertDailySummary(
   peakPeriod?: string,
   dominantMood?: string,
 ): void {
-  db.runSync(
+  if (isWeb) return;
+  db!.runSync(
     `INSERT INTO daily_summaries (date, total_count, session_count, peak_period, dominant_mood)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(date) DO UPDATE SET
@@ -106,14 +115,16 @@ export function upsertDailySummary(
 }
 
 export function getRecentSummaries(days: number): DailySummary[] {
-  return db.getAllSync<DailySummary>(
+  if (isWeb) return [];
+  return db!.getAllSync<DailySummary>(
     'SELECT * FROM daily_summaries ORDER BY date DESC LIMIT ?',
     [days],
   );
 }
 
 export function getSummaryByDate(date: string): DailySummary | null {
-  return db.getFirstSync<DailySummary>(
+  if (isWeb) return null;
+  return db!.getFirstSync<DailySummary>(
     'SELECT * FROM daily_summaries WHERE date = ?',
     [date],
   );
