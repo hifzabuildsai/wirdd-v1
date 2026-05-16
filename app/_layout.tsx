@@ -4,9 +4,21 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import notifee from '@notifee/react-native';
 
 import { Colors } from '@/constants/colors';
 import { initDatabase } from '@/services/database';
+import {
+  registerForegroundServiceHandler,
+  handleBackgroundEvent,
+} from '@/services/foregroundService';
+
+// ── Notifee setup (module-level — must run before first render) ───────────────
+if (Platform.OS === 'android') {
+  registerForegroundServiceHandler();
+  notifee.onBackgroundEvent(handleBackgroundEvent);
+}
 
 SplashScreen.preventAutoHideAsync();
 

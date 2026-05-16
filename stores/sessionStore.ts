@@ -8,17 +8,21 @@ function makeLocalId(): string {
 
 interface SessionState {
   isActive: boolean;
+  isPaused: boolean;
   count: number;
   startedAt: number | null;
   localId: string | null;
   phraseId: string;
   startSession: () => void;
   stopSession: () => void;
+  pauseSession: () => void;
+  resumeSession: () => void;
   increment: () => void;
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   isActive: false,
+  isPaused: false,
   count: 0,
   startedAt: null,
   localId: null,
@@ -28,15 +32,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const localId = makeLocalId();
     const startedAt = Date.now();
     insertSession(localId, startedAt, get().phraseId);
-    set({ isActive: true, count: 0, startedAt, localId });
+    set({ isActive: true, isPaused: false, count: 0, startedAt, localId });
   },
 
   stopSession: () => {
     const { localId, count, startedAt } = get();
     if (!localId || startedAt === null) return;
     endSession(localId, Date.now(), count);
-    set({ isActive: false, startedAt: null, localId: null });
+    set({ isActive: false, isPaused: false, startedAt: null, localId: null });
   },
+
+  pauseSession: () => set({ isPaused: true }),
+  resumeSession: () => set({ isPaused: false }),
 
   increment: () => set((s) => ({ count: s.count + 1 })),
 }));

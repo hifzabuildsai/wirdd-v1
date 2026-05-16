@@ -13,7 +13,12 @@
     },
     "android": {
       "package": "app.wirdd.android",
-      "permissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#080910",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -29,6 +34,7 @@
     },
     "plugins": [
       "expo-router",
+      "@notifee/react-native",
       [
         "expo-splash-screen",
         {
@@ -43,6 +49,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2506b932-1610-4568-9bf7-278bf36d3e90"
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,31 +6,91 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { useVoiceDetection } from '@/hooks/useVoiceDetection';
 import { CounterCircle } from '@/components/session/CounterCircle';
 import { ListeningIndicator } from '@/components/session/ListeningIndicator';
 import { ShockwaveRing } from '@/components/session/ShockwaveRing';
+import {
+  startForegroundService,
+  stopForegroundService,
+  requestNotificationUpdate,
+  registerSessionCallbacks,
+  clearSessionCallbacks,
+} from '@/services/foregroundService';
 
 export default function SessionScreen() {
-  const { isActive, count, startSession, stopSession, increment } = useSessionStore();
+  const {
+    isActive,
+    count,
+    startSession,
+    stopSession,
+    pauseSession,
+    resumeSession,
+    increment,
+  } = useSessionStore();
+  const { isPro } = useProfileStore();
   const detectionSignal = useSharedValue(0);
 
+  // Called on every Porcupine detection
   const handleDetect = useCallback(() => {
     increment();
     detectionSignal.value = detectionSignal.value + 1;
-  }, [increment, detectionSignal]);
+    if (isPro) {
+      // Zustand set is synchronous — getState().count reflects the post-increment value
+      requestNotificationUpdate(useSessionStore.getState().count);
+    }
+  }, [increment, detectionSignal, isPro]);
 
-  const { start, stop } = useVoiceDetection(handleDetect);
+  const { start, stop, pause, resume } = useVoiceDetection(handleDetect);
+
+  // Stable refs so callbacks registered with foregroundService never close over stale fns
+  const stopRef = useRef(stop);
+  const pauseRef = useRef(pause);
+  const resumeRef = useRef(resume);
+  stopRef.current = stop;
+  pauseRef.current = pause;
+  resumeRef.current = resume;
+
+  // Register notification action callbacks while session is active
+  useEffect(() => {
+    if (!isActive || !isPro) return;
+
+    registerSessionCallbacks({
+      onPause: () => {
+        pauseRef.current();
+        pauseSession();
+      },
+      onResume: () => {
+        resumeRef.current();
+        resumeSession();
+      },
+      onEnd: () => {
+        stopRef.current().then(() => {
+          stopSession();
+          stopForegroundService();
+        });
+      },
+    });
+
+    return () => clearSessionCallbacks();
+  }, [isActive, isPro, pauseSession, resumeSession, stopSession]);
 
   const handleStart = useCallback(async () => {
     startSession();
     await start();
-  }, [startSession, start]);
+    if (isPro) {
+      await startForegroundService(0);
+    }
+  }, [startSession, start, isPro]);
 
   const handleStop = useCallback(async () => {
     await stop();
     stopSession();
-  }, [stop, stopSession]);
+    if (isPro) {
+      await stopForegroundService();
+    }
+  }, [stop, stopSession, isPro]);
 
   return (
     <View style={styles.container}>

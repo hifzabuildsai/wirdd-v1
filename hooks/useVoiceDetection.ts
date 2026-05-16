@@ -86,6 +86,27 @@ export function useVoiceDetection(onDetect: () => void) {
     }
   }, []);
 
+  // Pause/resume without releasing the Porcupine instance (cheaper than stop+start)
+  const pause = useCallback(async () => {
+    if (!porcupineRef.current) return;
+    sessionActiveRef.current = false;
+    try {
+      await porcupineRef.current.stop();
+    } catch (err) {
+      console.error('[useVoiceDetection] pause failed', err);
+    }
+  }, []);
+
+  const resume = useCallback(async () => {
+    if (!porcupineRef.current) return;
+    sessionActiveRef.current = true;
+    try {
+      await porcupineRef.current.start();
+    } catch (err) {
+      console.error('[useVoiceDetection] resume failed', err);
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
       sessionActiveRef.current = false;
@@ -99,5 +120,5 @@ export function useVoiceDetection(onDetect: () => void) {
     };
   }, []);
 
-  return { start, stop };
+  return { start, stop, pause, resume };
 }
