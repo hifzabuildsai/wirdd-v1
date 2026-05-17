@@ -129,3 +129,13 @@ export function getSummaryByDate(date: string): DailySummary | null {
     [date],
   );
 }
+
+export function refreshDailySummary(dateYYYYMMDD: string): void {
+  if (isWeb) return;
+  const sessions = getSessionsByDate(dateYYYYMMDD);
+  const completed = sessions.filter((s) => s.ended_at !== null);
+  const totalCount = completed.reduce((sum, s) => sum + s.count, 0);
+  const sessionCount = completed.length;
+  if (sessionCount === 0) return;
+  upsertDailySummary(dateYYYYMMDD, totalCount, sessionCount);
+}

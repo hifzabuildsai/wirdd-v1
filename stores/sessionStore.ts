@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { insertSession, endSession } from '@/services/database';
+import { insertSession, endSession, refreshDailySummary } from '@/services/database';
 
 function makeLocalId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -38,7 +38,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   stopSession: () => {
     const { localId, count, startedAt } = get();
     if (!localId || startedAt === null) return;
-    endSession(localId, Date.now(), count);
+    const endedAt = Date.now();
+    endSession(localId, endedAt, count);
+    const date = new Date(endedAt).toISOString().slice(0, 10);
+    refreshDailySummary(date);
     set({ isActive: false, isPaused: false, startedAt: null, localId: null });
   },
 
