@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { signIn, signUp } from '@/services/supabase';
 import { Colors } from '@/constants/colors';
@@ -23,6 +24,7 @@ export default function AuthScreen() {
   const [tab, setTab] = useState<Tab>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -92,16 +94,29 @@ export default function AuthScreen() {
           autoCorrect={false}
           returnKeyType="next"
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={Colors.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          returnKeyType="done"
-          onSubmitEditing={handleSubmit}
-        />
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={[styles.input, styles.inputWithIcon]}
+            placeholder="Password"
+            placeholderTextColor={Colors.textMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+          />
+          <Pressable
+            style={styles.eyeIcon}
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={Colors.textMuted}
+            />
+          </Pressable>
+        </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -183,6 +198,11 @@ const styles = StyleSheet.create({
   },
 
   // ── Inputs ────────────────────────────────────────────────────────────────
+  inputWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+    width: '100%',
+  },
   input: {
     width: '100%',
     backgroundColor: Colors.surface,
@@ -194,6 +214,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui,
     fontSize: 15,
     color: Colors.textPrimary,
+  },
+  inputWithIcon: {
+    paddingRight: 44,
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 14,
   },
   error: {
     fontFamily: Fonts.ui,
