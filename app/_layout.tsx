@@ -23,8 +23,12 @@ import { useProfileStore } from '@/stores/profileStore';
 
 // ── Notifee setup (module-level — must run before first render) ───────────────
 if (Platform.OS === 'android') {
-  registerForegroundServiceHandler();
-  notifee.onBackgroundEvent(handleBackgroundEvent);
+  try {
+    registerForegroundServiceHandler();
+    notifee.onBackgroundEvent(handleBackgroundEvent);
+  } catch (e) {
+    console.warn('[notifee] startup registration failed:', e);
+  }
 }
 
 SplashScreen.preventAutoHideAsync();
@@ -57,17 +61,23 @@ export default function RootLayout() {
     });
   }, []);
 
-  // Load cached isPro immediately, then verify against Supabase in background
+  // Load cached isPro immediately, then verify against Supabase in background.
+  // Inner try/catch ensures any Supabase failure (null client, network, etc.)
+  // is silently absorbed — app continues in local-only mode.
   useEffect(() => {
     loadFromCache();
     (async () => {
-      let userId = await getCurrentUserId();
-      if (!userId) userId = await signInAnonymously();
-      if (!userId) return;
-      await ensureProfile(userId);
-      const pro = await fetchIsPro(userId);
-      setIsPro(pro);
-    })().catch(() => {});
+      try {
+        let userId = await getCurrentUserId();
+        if (!userId) userId = await signInAnonymously();
+        if (!userId) return;
+        await ensureProfile(userId);
+        const pro = await fetchIsPro(userId);
+        setIsPro(pro);
+      } catch {
+        // Supabase unavailable — local-only mode
+      }
+    })();
   }, []);
 
   // Re-verify isPro when payment deep link fires (wirdd://payment-success)

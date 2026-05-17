@@ -40,7 +40,11 @@ export function clearSessionCallbacks(): void {
 // is cancelled.
 export function registerForegroundServiceHandler(): void {
   if (Platform.OS !== 'android') return;
-  notifee.registerForegroundService(() => new Promise(() => {}));
+  try {
+    notifee.registerForegroundService(() => new Promise(() => {}));
+  } catch (e) {
+    console.warn('[foregroundService] register failed:', e);
+  }
 }
 
 // ── Notifee background event handler ────────────────────────────────────────
