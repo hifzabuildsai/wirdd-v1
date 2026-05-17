@@ -92,6 +92,14 @@ export default function SessionScreen() {
     }
   }, [stop, stopSession, isPro]);
 
+  const handleManualIncrement = useCallback(() => {
+    increment();
+    detectionSignal.value = detectionSignal.value + 1;
+    if (isPro) {
+      requestNotificationUpdate(useSessionStore.getState().count);
+    }
+  }, [increment, detectionSignal, isPro]);
+
   return (
     <View style={styles.container}>
       {isActive ? (
@@ -103,10 +111,15 @@ export default function SessionScreen() {
 
           <ListeningIndicator />
 
-          <Pressable style={styles.stopButton} onPress={handleStop}>
-            <Ionicons name="stop-circle-outline" size={20} color={Colors.textSecondary} />
-            <Text style={styles.stopLabel}>Stop</Text>
-          </Pressable>
+          <View style={styles.actionRow}>
+            <Pressable style={styles.plusButton} onPress={handleManualIncrement}>
+              <Text style={styles.plusLabel}>+1</Text>
+            </Pressable>
+            <Pressable style={styles.stopButton} onPress={handleStop}>
+              <Ionicons name="stop-circle-outline" size={20} color={Colors.textSecondary} />
+              <Text style={styles.stopLabel}>Stop</Text>
+            </Pressable>
+          </View>
         </View>
       ) : (
         <View style={styles.idleContainer}>
@@ -138,6 +151,24 @@ const styles = StyleSheet.create({
   counterWrap: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  plusButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  plusLabel: {
+    fontFamily: Fonts.uiMedium,
+    fontSize: 14,
+    color: Colors.gold,
   },
   stopButton: {
     flexDirection: 'row',
