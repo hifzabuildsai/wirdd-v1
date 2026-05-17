@@ -1,9 +1,13 @@
 import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
 import { useProfileStore } from '@/stores/profileStore';
+import { getCurrentUserId, fetchIsPro } from '@/services/supabase';
+
+const PADDLE_PRODUCT_ID = process.env.EXPO_PUBLIC_PADDLE_PRODUCT_ID ?? '';
 
 const PRO_FEATURES = [
   'Pinned notification on locked screen',
@@ -13,11 +17,27 @@ const PRO_FEATURES = [
 ] as const;
 
 export default function SettingsScreen() {
-  const { isPro } = useProfileStore();
+  const { isPro, setIsPro } = useProfileStore();
 
-  // Day 6: replace with Paddle WebView navigation
-  function handleUnlockPro() {
-    console.log('Day 6: Paddle checkout');
+  async function handleUnlockPro() {
+    const userId = await getCurrentUserId();
+    if (!userId) return;
+
+    // Pass userId as custom_data so the webhook knows who to unlock
+    const checkoutUrl =
+      `https://buy.paddle.com/product/${PADDLE_PRODUCT_ID}` +
+      `?custom_data=${encodeURIComponent(JSON.stringify({ user_id: userId }))}`;
+
+    const result = await WebBrowser.openAuthSessionAsync(
+      checkoutUrl,
+      'wirdd://payment-success',
+    );
+
+    // Deep link fired — verify against Supabase (webhook may have already set it)
+    if (result.type === 'success' || result.type === 'dismiss') {
+      const pro = await fetchIsPro(userId);
+      if (pro) setIsPro(true);
+    }
   }
 
   return (
