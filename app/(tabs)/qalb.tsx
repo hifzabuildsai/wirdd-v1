@@ -147,7 +147,7 @@ export default function QalbScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.arabicTitle}>القلب</Text>
+        <Text style={styles.arabicTitle}>قَلْب</Text>
         <Text style={styles.latinTitle}>QALB</Text>
       </View>
 
@@ -180,7 +180,7 @@ export default function QalbScreen() {
       </View>
 
       {isEmpty && (
-        <Text style={styles.emptyHint}>No sessions this week</Text>
+        <Text style={styles.emptyHint}>Your heart's history will appear here</Text>
       )}
     </ScrollView>
   );

@@ -11,6 +11,7 @@ import { useVoiceDetection } from '@/hooks/useVoiceDetection';
 import { CounterCircle } from '@/components/session/CounterCircle';
 import { ListeningIndicator } from '@/components/session/ListeningIndicator';
 import { ShockwaveRing } from '@/components/session/ShockwaveRing';
+import { BreathingRing } from '@/components/session/BreathingRing';
 import {
   startForegroundService,
   stopForegroundService,
@@ -105,6 +106,7 @@ export default function SessionScreen() {
       {isActive ? (
         <View style={styles.activeContainer}>
           <View style={styles.counterWrap}>
+            <BreathingRing />
             <ShockwaveRing detectionSignal={detectionSignal} />
             <CounterCircle count={count} detectionSignal={detectionSignal} />
           </View>
@@ -128,7 +130,7 @@ export default function SessionScreen() {
           <Pressable style={styles.startButton} onPress={handleStart}>
             <Ionicons name="mic" size={30} color={Colors.background} />
           </Pressable>
-          <Text style={styles.startHint}>Tap to begin your session</Text>
+          <Text style={styles.startHint}>Say Astaghfirullah to begin</Text>
         </View>
       )}
     </View>

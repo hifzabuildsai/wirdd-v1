@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Redirect, Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
@@ -34,6 +34,8 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  const router = useRouter();
+
   const [fontsLoaded, fontError] = useFonts({
     'Amiri-Regular': require('../assets/fonts/Amiri-Regular.ttf'),
     'CormorantGaramond-Light': require('../assets/fonts/CormorantGaramond-Light.ttf'),
@@ -89,6 +91,17 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
+  // One-shot redirect on first load — fires only when ready transitions true.
+  // Using useEffect (not declarative <Redirect>) so it doesn't re-fire while
+  // the user navigates through the onboarding → auth → permission flow.
+  useEffect(() => {
+    if (!ready) return;
+    if (!hasOnboarded) {
+      router.replace('/onboarding');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
   if (!ready) return null;
 
   return (
@@ -102,9 +115,10 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="auth" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="permission/index" options={{ animation: 'slide_from_right' }} />
       </Stack>
       <StatusBar style="light" backgroundColor={Colors.background} />
-      {!hasOnboarded && <Redirect href="/onboarding" />}
     </>
   );
 }

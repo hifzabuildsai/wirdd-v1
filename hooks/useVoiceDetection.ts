@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { PorcupineManager } from '@picovoice/porcupine-react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
 
 import { PORCUPINE_ACCESS_KEY, KEYWORD_ASSET } from '@/constants/porcupine';

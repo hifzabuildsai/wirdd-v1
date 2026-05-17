@@ -23,7 +23,7 @@ export function CounterCircle({ count, detectionSignal }: Props) {
     (current, previous) => {
       'worklet';
       if (previous !== null && current !== previous) {
-        scale.value = withSpring(1.08, { damping: 4, stiffness: 300 }, () => {
+        scale.value = withSpring(1.15, { damping: 4, stiffness: 300 }, () => {
           'worklet';
           scale.value = withSpring(1, { damping: 12, stiffness: 200 });
         });

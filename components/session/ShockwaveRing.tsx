@@ -28,7 +28,7 @@ export function ShockwaveRing({ detectionSignal, size = 220 }: Props) {
         opacity.value = 0.7;
         scale.value = 1;
         opacity.value = withTiming(0, { duration: 900, easing: Easing.out(Easing.quad) });
-        scale.value = withTiming(2.2, { duration: 900, easing: Easing.out(Easing.quad) });
+        scale.value = withTiming(2.6, { duration: 900, easing: Easing.out(Easing.quad) });
       }
     },
   );
