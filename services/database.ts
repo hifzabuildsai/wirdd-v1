@@ -92,6 +92,11 @@ export function markSessionSynced(localId: string): void {
   db!.runSync('UPDATE sessions SET synced = 1 WHERE local_id = ?', [localId]);
 }
 
+export function updateSessionMood(localId: string, mood: string): void {
+  if (isWeb) return;
+  db!.runSync('UPDATE sessions SET mood = ? WHERE local_id = ?', [mood, localId]);
+}
+
 // ── Daily summaries ────────────────────────────────────────────────────────
 
 export function upsertDailySummary(

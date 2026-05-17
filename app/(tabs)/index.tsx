@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Colors } from '@/constants/colors';
@@ -12,6 +13,7 @@ import { CounterCircle } from '@/components/session/CounterCircle';
 import { ListeningIndicator } from '@/components/session/ListeningIndicator';
 import { ShockwaveRing } from '@/components/session/ShockwaveRing';
 import { BreathingRing } from '@/components/session/BreathingRing';
+import { updateSessionMood } from '@/services/database';
 import {
   startForegroundService,
   stopForegroundService,
@@ -20,7 +22,18 @@ import {
   clearSessionCallbacks,
 } from '@/services/foregroundService';
 
+// ── Mood options ───────────────────────────────────────────────────────────
+
+const MOODS = [
+  { emoji: '😔', label: 'Distracted', key: 'distracted' },
+  { emoji: '😐', label: 'Present',    key: 'present'    },
+  { emoji: '🤍', label: 'Connected',  key: 'connected'  },
+] as const;
+
+// ── Screen ─────────────────────────────────────────────────────────────────
+
 export default function SessionScreen() {
+  const router = useRouter();
   const {
     isActive,
     count,
@@ -32,6 +45,9 @@ export default function SessionScreen() {
   } = useSessionStore();
   const { isPro } = useProfileStore();
   const detectionSignal = useSharedValue(0);
+
+  const [moodVisible, setMoodVisible] = useState(false);
+  const [pendingLocalId, setPendingLocalId] = useState<string | null>(null);
 
   // Called on every Porcupine detection
   const handleDetect = useCallback(() => {
@@ -86,10 +102,16 @@ export default function SessionScreen() {
   }, [startSession, start, isPro]);
 
   const handleStop = useCallback(async () => {
+    // Capture localId before stopSession() resets it to null
+    const sessionLocalId = useSessionStore.getState().localId;
     await stop();
     stopSession();
     if (isPro) {
       await stopForegroundService();
+    }
+    if (sessionLocalId) {
+      setPendingLocalId(sessionLocalId);
+      setMoodVisible(true);
     }
   }, [stop, stopSession, isPro]);
 
@@ -100,6 +122,15 @@ export default function SessionScreen() {
       requestNotificationUpdate(useSessionStore.getState().count);
     }
   }, [increment, detectionSignal, isPro]);
+
+  function handleMoodSelect(mood: string | null) {
+    if (mood && pendingLocalId) {
+      updateSessionMood(pendingLocalId, mood);
+    }
+    setMoodVisible(false);
+    setPendingLocalId(null);
+    router.navigate('/dashboard');
+  }
 
   return (
     <View style={styles.container}>
@@ -133,9 +164,37 @@ export default function SessionScreen() {
           <Text style={styles.startHint}>Say Astaghfirullah to begin</Text>
         </View>
       )}
+
+      {/* ── Mood modal ──────────────────────────────────────────────────── */}
+      <Modal
+        visible={moodVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => handleMoodSelect(null)}
+      >
+        <Pressable style={modal.overlay} onPress={() => handleMoodSelect(null)}>
+          <Pressable style={modal.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={modal.header}>
+              <Text style={modal.question}>How was your heart?</Text>
+              <Pressable onPress={() => handleMoodSelect(null)} hitSlop={12}>
+                <Text style={modal.skip}>Skip</Text>
+              </Pressable>
+            </View>
+
+            {MOODS.map(({ emoji, label, key }) => (
+              <Pressable key={key} style={modal.row} onPress={() => handleMoodSelect(key)}>
+                <Text style={modal.emoji}>{emoji}</Text>
+                <Text style={modal.label}>{label}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
+
+// ── Styles ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -219,5 +278,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 8,
+  },
+});
+
+const modal = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  question: {
+    fontFamily: Fonts.display,
+    fontSize: 20,
+    color: Colors.textPrimary,
+  },
+  skip: {
+    fontFamily: Fonts.ui,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 18,
+    borderTopWidth: 1,
+    borderColor: Colors.border,
+  },
+  emoji: {
+    fontSize: 28,
+  },
+  label: {
+    fontFamily: Fonts.uiMedium,
+    fontSize: 17,
+    color: Colors.textPrimary,
   },
 });
