@@ -1,15 +1,10 @@
-import { useRef, useEffect, useCallback } from 'react';
-import { PermissionsAndroid, Platform } from 'react-native';
-import { PorcupineManager } from '@picovoice/porcupine-react-native';
-import * as FileSystem from 'expo-file-system/legacy';
-import { Asset } from 'expo-asset';
-
-import { PORCUPINE_ACCESS_KEY, KEYWORD_ASSET } from '@/constants/porcupine';
-
-const DEBOUNCE_MS = 1500;
+import { useRef, useEffect, useCallback } from 'react'
+import { PermissionsAndroid, Platform } from 'react-native'
+import { AndroidSpeechEngine } from '../services/engines/androidSpeechEngine'
+import { VoiceDetectionEngine } from '../services/engines/voiceDetectionEngine'
 
 async function requestMicPermission(): Promise<boolean> {
-  if (Platform.OS !== 'android') return false;
+  if (Platform.OS !== 'android') return false
   const result = await PermissionsAndroid.request(
     PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
     {
@@ -18,107 +13,70 @@ async function requestMicPermission(): Promise<boolean> {
       buttonPositive: 'Allow',
       buttonNegative: 'Deny',
     },
-  );
-  return result === PermissionsAndroid.RESULTS.GRANTED;
+  )
+  return result === PermissionsAndroid.RESULTS.GRANTED
 }
 
 export function useVoiceDetection(onDetect: () => void) {
-  const porcupineRef = useRef<PorcupineManager | null>(null);
-  const sessionActiveRef = useRef(false);
-  const lastDetectionRef = useRef(0);
-  // mirror onDetect so handleDetection stays stable with no deps
-  const onDetectRef = useRef(onDetect);
-  onDetectRef.current = onDetect;
-
-  const handleDetection = useCallback(() => {
-    if (!sessionActiveRef.current) return; // ghost-detection guard
-    const now = Date.now();
-    if (now - lastDetectionRef.current < DEBOUNCE_MS) return; // debounce
-    lastDetectionRef.current = now;
-    onDetectRef.current();
-  }, []);
+  const engineRef = useRef<VoiceDetectionEngine>(new AndroidSpeechEngine())
+  const isRunningRef = useRef(false)
+  const onDetectRef = useRef(onDetect)
+  onDetectRef.current = onDetect
 
   const start = useCallback(async () => {
-    if (porcupineRef.current) return; // singleton guard
+    if (isRunningRef.current) return
 
-    if (!PORCUPINE_ACCESS_KEY || KEYWORD_ASSET === null) {
-      console.warn('[Wirdd] Porcupine not configured — add key + .ppn to constants/porcupine.ts');
-      sessionActiveRef.current = true;
-      return;
-    }
-
-    const granted = await requestMicPermission();
+    const granted = await requestMicPermission()
     if (!granted) {
-      console.warn('[Wirdd] Microphone permission denied');
-      return;
+      console.warn('[Wirdd] Microphone permission denied')
+      return
     }
 
     try {
-      const asset = Asset.fromModule(KEYWORD_ASSET);
-      await asset.downloadAsync();
-      const dest = `${FileSystem.cacheDirectory}astaghfirullah_android.ppn`;
-      await FileSystem.copyAsync({ from: asset.localUri!, to: dest });
-
-      porcupineRef.current = await PorcupineManager.fromKeywordPaths(
-        PORCUPINE_ACCESS_KEY,
-        [dest],
-        () => handleDetection(),
-        (error) => console.error('[Porcupine]', error),
-      );
-      sessionActiveRef.current = true;
-      await porcupineRef.current.start();
+      await engineRef.current.initialize()
+      await engineRef.current.start(() => onDetectRef.current())
+      isRunningRef.current = true
     } catch (err) {
-      console.error('[useVoiceDetection] start failed', err);
-      porcupineRef.current = null;
+      console.error('[useVoiceDetection] start failed', err)
     }
-  }, [handleDetection]);
+  }, [])
 
   const stop = useCallback(async () => {
-    sessionActiveRef.current = false; // set before async teardown — drops in-flight callbacks
-    if (!porcupineRef.current) return;
+    if (!isRunningRef.current) return
+    isRunningRef.current = false
     try {
-      await porcupineRef.current.stop();
-      porcupineRef.current.delete(); // synchronous in v4
+      await engineRef.current.stop()
     } catch (err) {
-      console.error('[useVoiceDetection] stop failed', err);
-    } finally {
-      porcupineRef.current = null;
+      console.error('[useVoiceDetection] stop failed', err)
     }
-  }, []);
+  }, [])
 
-  // Pause/resume without releasing the Porcupine instance (cheaper than stop+start)
   const pause = useCallback(async () => {
-    if (!porcupineRef.current) return;
-    sessionActiveRef.current = false;
+    if (!isRunningRef.current) return
+    isRunningRef.current = false
     try {
-      await porcupineRef.current.stop();
+      await engineRef.current.stop()
     } catch (err) {
-      console.error('[useVoiceDetection] pause failed', err);
+      console.error('[useVoiceDetection] pause failed', err)
     }
-  }, []);
+  }, [])
 
   const resume = useCallback(async () => {
-    if (!porcupineRef.current) return;
-    sessionActiveRef.current = true;
+    if (isRunningRef.current) return
     try {
-      await porcupineRef.current.start();
+      await engineRef.current.start(() => onDetectRef.current())
+      isRunningRef.current = true
     } catch (err) {
-      console.error('[useVoiceDetection] resume failed', err);
+      console.error('[useVoiceDetection] resume failed', err)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     return () => {
-      sessionActiveRef.current = false;
-      // fire-and-forget cleanup on unmount
-      if (porcupineRef.current) {
-        porcupineRef.current.stop().then(() => {
-          porcupineRef.current?.delete();
-          porcupineRef.current = null;
-        });
-      }
-    };
-  }, []);
+      isRunningRef.current = false
+      engineRef.current.destroy().catch(() => {})
+    }
+  }, [])
 
-  return { start, stop, pause, resume };
+  return { start, stop, pause, resume }
 }
