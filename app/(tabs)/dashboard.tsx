@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
-import { getRecentSummaries, getSummaryByDate, type DailySummary } from '@/services/database';
+import { getRecentSummaries, getRecentSessions, getSummaryByDate, localDate, type DailySummary, type Session } from '@/services/database';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ interface ChartDay {
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const;
 
 function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 function buildChartData(summaries: DailySummary[], today: string): ChartDay[] {
@@ -29,7 +29,7 @@ function buildChartData(summaries: DailySummary[], today: string): ChartDay[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const date = d.toISOString().slice(0, 10);
+    const date = localDate(d.getTime());
     days.push({
       date,
       label: DAY_LETTERS[d.getDay()],
@@ -45,7 +45,7 @@ function computeStreak(summaries: DailySummary[], today: string): number {
   let streak = 0;
   const cursor = new Date(today);
   while (true) {
-    const date = cursor.toISOString().slice(0, 10);
+    const date = localDate(cursor.getTime());
     const count = map.get(date) ?? 0;
     if (count === 0) break;
     streak++;
@@ -142,6 +142,7 @@ export default function DashboardScreen() {
   const [todayCount, setTodayCount] = useState(0);
   const [streak, setStreak] = useState(0);
   const [chartData, setChartData] = useState<ChartDay[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -152,6 +153,7 @@ export default function DashboardScreen() {
       setTodayCount(todaySummary?.total_count ?? 0);
       setStreak(computeStreak(summaries, today));
       setChartData(buildChartData(summaries, today));
+      setSessions(getRecentSessions(10));
     }, []),
   );
 
@@ -180,6 +182,16 @@ export default function DashboardScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>LAST 7 DAYS</Text>
         <BarChart data={chartData} />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>RECENT SESSIONS</Text>
+        {sessions.length === 0 ? <Text style={styles.emptyHint}>No saved sessions yet</Text> : sessions.map(session => (
+          <View key={session.local_id} style={styles.sessionRow}>
+            <Text style={styles.sessionDate}>{new Date(session.started_at).toLocaleString()}</Text>
+            <Text style={styles.sessionCount}>{session.count}</Text>
+          </View>
+        ))}
       </View>
 
       {isEmpty && (
@@ -250,5 +262,25 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     marginTop: 8,
+  },
+  sessionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: 12,
+  },
+  sessionDate: {
+    fontFamily: Fonts.ui,
+    color: Colors.textSecondary,
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  sessionCount: {
+    fontFamily: Fonts.display,
+    color: Colors.gold,
+    fontSize: 24,
   },
 });

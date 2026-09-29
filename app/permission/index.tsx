@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
@@ -30,7 +30,7 @@ export default function PermissionScreen() {
   const [expanded, setExpanded] = useState(false);
 
   async function handleAllow() {
-    await Audio.requestPermissionsAsync();
+    await ExpoSpeechRecognitionModule.requestMicrophonePermissionsAsync();
     await completeOnboarding(router);
   }
 
@@ -49,10 +49,10 @@ export default function PermissionScreen() {
         <Ionicons name="mic" size={80} color={Colors.gold} />
       </View>
 
-      <Text style={styles.heading}>Wird needs your microphone</Text>
+      <Text style={styles.heading}>Wirdd needs your microphone</Text>
       <Text style={styles.body}>
-        Wird listens for dhikr on your device.{'\n'}
-        No audio is stored or shared.
+        Wirdd counts during an open session. An Arabic offline speech model is required
+        for automatic counting. Manual counting works without it.
       </Text>
 
       <Pressable style={styles.allowBtn} onPress={handleAllow}>
@@ -72,9 +72,9 @@ export default function PermissionScreen() {
       {expanded && (
         <View style={styles.howContent}>
           <Text style={styles.howText}>
-            Wird uses Porcupine, an on-device wake-word engine. It detects only the specific phrase
-            you choose — no transcription, no recording, no uploads. The microphone is active only
-            during an open session.
+            Wirdd asks Android for on-device Arabic speech recognition and reads the resulting
+            text in memory to count Astaghfirullah. Wirdd does not save raw audio or transcripts.
+            Voice counting stops when you pause or end a session.
           </Text>
         </View>
       )}

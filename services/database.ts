@@ -50,7 +50,69 @@ export function initDatabase(): void {
       peak_period    TEXT,
       dominant_mood  TEXT
     );
+    CREATE TABLE IF NOT EXISTS count_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      local_id TEXT NOT NULL,
+      occurred_at INTEGER NOT NULL,
+      delta INTEGER NOT NULL CHECK(delta IN (-1, 1))
+    );
+    CREATE INDEX IF NOT EXISTS count_events_day ON count_events(occurred_at);
   `);
+}
+
+export function localDate(timestamp = Date.now()): string {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function dayBounds(date: string): [number, number] {
+  const [year, month, day] = date.split('-').map(Number);
+  const start = new Date(year, month - 1, day).getTime();
+  return [start, new Date(year, month - 1, day + 1).getTime()];
+}
+
+// Atomic event + count update. An interrupted process can recover exactly the
+// committed count; no in-memory count is treated as durable truth.
+export function changeSessionCount(localId: string, delta: -1 | 1): number {
+  if (isWeb) return 0;
+  let count = 0;
+  const now = Date.now();
+  let eventTime = now;
+  db!.withTransactionSync(() => {
+    const current = db!.getFirstSync<Pick<Session, 'count'>>(
+      'SELECT count FROM sessions WHERE local_id = ? AND ended_at IS NULL', [localId],
+    );
+    if (!current) throw new Error('Session is no longer active');
+    count = Math.max(0, current.count + delta);
+    if (count === current.count) return;
+    if (delta === -1) {
+      const events = db!.getAllSync<{ occurred_at: number; delta: number }>(
+        'SELECT occurred_at, delta FROM count_events WHERE local_id = ? ORDER BY id', [localId],
+      );
+      const unmatched: number[] = [];
+      for (const event of events) {
+        if (event.delta === 1) unmatched.push(event.occurred_at);
+        else unmatched.pop();
+      }
+      eventTime = unmatched.at(-1) ?? now;
+    }
+    db!.runSync('UPDATE sessions SET count = ? WHERE local_id = ?', [count, localId]);
+    db!.runSync('INSERT INTO count_events (local_id, occurred_at, delta) VALUES (?, ?, ?)', [localId, eventTime, delta]);
+  });
+  refreshDailySummary(localDate(eventTime));
+  return count;
+}
+
+export function recoverInterruptedSessions(): number {
+  if (isWeb) return 0;
+  const open = db!.getAllSync<Session>('SELECT * FROM sessions WHERE ended_at IS NULL');
+  const now = Date.now();
+  db!.runSync('UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL', [now]);
+  for (const session of open) {
+    refreshDailySummary(localDate(session.started_at));
+    refreshDailySummary(localDate(now));
+  }
+  return open.length;
 }
 
 // ── Sessions ───────────────────────────────────────────────────────────────
@@ -74,11 +136,17 @@ export function endSession(localId: string, endedAt: number, count: number, mood
 
 export function getSessionsByDate(dateYYYYMMDD: string): Session[] {
   if (isWeb) return [];
-  const dayStart = new Date(dateYYYYMMDD).setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dateYYYYMMDD).setHours(23, 59, 59, 999);
+  const [dayStart, dayEnd] = dayBounds(dateYYYYMMDD);
   return db!.getAllSync<Session>(
-    'SELECT * FROM sessions WHERE started_at BETWEEN ? AND ? ORDER BY started_at DESC',
+    'SELECT * FROM sessions WHERE started_at >= ? AND started_at < ? ORDER BY started_at DESC',
     [dayStart, dayEnd],
+  );
+}
+
+export function getRecentSessions(limit = 10): Session[] {
+  if (isWeb) return [];
+  return db!.getAllSync<Session>(
+    'SELECT * FROM sessions ORDER BY started_at DESC LIMIT ?', [limit],
   );
 }
 
@@ -137,10 +205,20 @@ export function getSummaryByDate(date: string): DailySummary | null {
 
 export function refreshDailySummary(dateYYYYMMDD: string): void {
   if (isWeb) return;
+  const [start, end] = dayBounds(dateYYYYMMDD);
   const sessions = getSessionsByDate(dateYYYYMMDD);
-  const completed = sessions.filter((s) => s.ended_at !== null);
-  const totalCount = completed.reduce((sum, s) => sum + s.count, 0);
-  const sessionCount = completed.length;
-  if (sessionCount === 0) return;
+  const events = db!.getFirstSync<{ total: number }>(
+    'SELECT COALESCE(SUM(delta), 0) AS total FROM count_events WHERE occurred_at >= ? AND occurred_at < ?',
+    [start, end],
+  );
+  // Preserve historical sessions created before count_events existed.
+  const legacy = db!.getFirstSync<{ total: number }>(
+    `SELECT COALESCE(SUM(s.count), 0) AS total FROM sessions s
+     WHERE s.started_at >= ? AND s.started_at < ?
+     AND NOT EXISTS (SELECT 1 FROM count_events e WHERE e.local_id = s.local_id)`,
+    [start, end],
+  );
+  const totalCount = Math.max(0, (events?.total ?? 0) + (legacy?.total ?? 0));
+  const sessionCount = sessions.length;
   upsertDailySummary(dateYYYYMMDD, totalCount, sessionCount);
 }

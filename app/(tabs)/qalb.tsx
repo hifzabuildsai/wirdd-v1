@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
-import { getRecentSummaries, type DailySummary } from '@/services/database';
+import { getRecentSummaries, localDate, type DailySummary } from '@/services/database';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ interface WeekDay {
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const;
 
 function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 function buildWeekData(summaries: DailySummary[], today: string): WeekDay[] {
@@ -29,7 +29,7 @@ function buildWeekData(summaries: DailySummary[], today: string): WeekDay[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const date = d.toISOString().slice(0, 10);
+    const date = localDate(d.getTime());
     days.push({
       date,
       label: DAY_LETTERS[d.getDay()],
@@ -180,7 +180,7 @@ export default function QalbScreen() {
       </View>
 
       {isEmpty && (
-        <Text style={styles.emptyHint}>Your heart's history will appear here</Text>
+        <Text style={styles.emptyHint}>Your heart&apos;s history will appear here</Text>
       )}
     </ScrollView>
   );

@@ -34,16 +34,6 @@ export function buildSessionNotification(
       ongoing: true,
       pressAction: { id: 'default' },
       color: '#C8A84B',
-      actions: [
-        {
-          title: isPaused ? 'Resume' : 'Pause',
-          pressAction: { id: isPaused ? 'resume' : 'pause' },
-        },
-        {
-          title: 'End',
-          pressAction: { id: 'end' },
-        },
-      ],
     },
   };
 }
