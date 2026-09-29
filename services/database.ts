@@ -98,8 +98,9 @@ export function changeSessionCount(localId: string, delta: -1 | 1): number {
     }
     db!.runSync('UPDATE sessions SET count = ? WHERE local_id = ?', [count, localId]);
     db!.runSync('INSERT INTO count_events (local_id, occurred_at, delta) VALUES (?, ?, ?)', [localId, eventTime, delta]);
+    // The event and the displayed daily total must commit together.
+    refreshDailySummary(localDate(eventTime));
   });
-  refreshDailySummary(localDate(eventTime));
   return count;
 }
 
@@ -107,11 +108,18 @@ export function recoverInterruptedSessions(): number {
   if (isWeb) return 0;
   const open = db!.getAllSync<Session>('SELECT * FROM sessions WHERE ended_at IS NULL');
   const now = Date.now();
-  db!.runSync('UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL', [now]);
-  for (const session of open) {
-    refreshDailySummary(localDate(session.started_at));
-    refreshDailySummary(localDate(now));
-  }
+  db!.withTransactionSync(() => {
+    db!.runSync('UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL', [now]);
+    // Repair an older summary if the process died after a count was committed.
+    const dates = new Set<string>([localDate(now)]);
+    for (const row of db!.getAllSync<{ occurred_at: number }>('SELECT occurred_at FROM count_events')) {
+      dates.add(localDate(row.occurred_at));
+    }
+    for (const row of db!.getAllSync<{ started_at: number }>('SELECT started_at FROM sessions')) {
+      dates.add(localDate(row.started_at));
+    }
+    for (const date of dates) refreshDailySummary(date);
+  });
   return open.length;
 }
 
@@ -128,10 +136,17 @@ export function insertSession(localId: string, startedAt: number, phraseId: stri
 
 export function endSession(localId: string, endedAt: number, count: number, mood?: string): void {
   if (isWeb) return;
-  db!.runSync(
-    'UPDATE sessions SET ended_at = ?, count = ?, mood = ? WHERE local_id = ?',
-    [endedAt, count, mood ?? null, localId],
-  );
+  db!.withTransactionSync(() => {
+    db!.runSync(
+      'UPDATE sessions SET ended_at = ?, count = ?, mood = ? WHERE local_id = ? AND ended_at IS NULL',
+      [endedAt, count, mood ?? null, localId],
+    );
+    const session = db!.getFirstSync<Pick<Session, 'started_at'>>('SELECT started_at FROM sessions WHERE local_id = ?', [localId]);
+    if (session) {
+      refreshDailySummary(localDate(session.started_at));
+      refreshDailySummary(localDate(endedAt));
+    }
+  });
 }
 
 export function getSessionsByDate(dateYYYYMMDD: string): Session[] {

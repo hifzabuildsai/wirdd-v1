@@ -31,10 +31,12 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
     if (runningRef.current) return;
     await requestMicPermission();
     await engineRef.current.initialize();
+    let failedDuringStartup = false;
     await engineRef.current.start(
       (count) => detectRef.current(count),
-      (message) => { runningRef.current = false; errorRef.current(message); },
+      (message) => { failedDuringStartup = true; runningRef.current = false; errorRef.current(message); },
     );
+    if (failedDuringStartup) throw new Error('Microphone stopped during startup. Retry the session.');
     runningRef.current = true;
   }, []);
 

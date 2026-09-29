@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
@@ -50,47 +50,77 @@ export default function SessionScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [manual, setManual] = useState(false);
+  const startingRef = useRef(false);
+  const bufferedRef = useRef(0);
+  const startupErrorRef = useRef<string | null>(null);
+  const stopVoiceRef = useRef<(() => Promise<void>) | null>(null);
 
   const handleDetect = useCallback((detected: number) => {
-    for (let i = 0; i < detected; i++) {
-      if (!useSessionStore.getState().isPaused) {
-        increment();
-        detectionSignal.value = detectionSignal.value + 1;
-      }
+    if (!useSessionStore.getState().isActive) {
+      if (startingRef.current) bufferedRef.current += detected;
+      return;
     }
-    requestNotificationUpdate(useSessionStore.getState().count);
-  }, [increment, detectionSignal]);
+    try {
+      for (let i = 0; i < detected; i++) {
+        if (!useSessionStore.getState().isPaused) {
+          increment();
+          detectionSignal.value = detectionSignal.value + 1;
+        }
+      }
+      requestNotificationUpdate(useSessionStore.getState().count);
+    } catch {
+      pauseSession();
+      void stopVoiceRef.current?.();
+      void setNotificationPaused(useSessionStore.getState().count, true).catch(() => {});
+      setError('Could not save a count. Microphone paused; check storage and retry.');
+    }
+  }, [increment, pauseSession, detectionSignal]);
 
   const handleVoiceError = useCallback((message: string) => {
+    if (startingRef.current) startupErrorRef.current = message;
     setError(message);
     pauseSession();
     void setNotificationPaused(useSessionStore.getState().count, true).catch(() => {});
   }, [pauseSession]);
   const { start, stop, pause, resume } = useVoiceDetection(handleDetect, handleVoiceError);
+  stopVoiceRef.current = stop;
 
   const handleStart = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     setError(null);
+    startingRef.current = true;
+    bufferedRef.current = 0;
+    startupErrorRef.current = null;
     try {
       await start();
+      if (startupErrorRef.current) throw new Error(startupErrorRef.current);
       await startForegroundService(0);
+      if (startupErrorRef.current) throw new Error(startupErrorRef.current);
       startSession();
+      startingRef.current = false;
       setManual(false);
+      if (bufferedRef.current > 0) handleDetect(bufferedRef.current);
     } catch (cause) {
       await stop().catch(() => {});
       await stopForegroundService().catch(() => {});
       setError(cause instanceof Error ? cause.message : 'Microphone failed to start.');
     } finally {
+      startingRef.current = false;
+      bufferedRef.current = 0;
       setBusy(false);
     }
-  }, [busy, startSession, start, stop]);
+  }, [busy, startSession, start, stop, handleDetect]);
 
   const handleManualStart = useCallback(() => {
     if (busy) return;
     setError(null);
-    startSession();
-    setManual(true);
+    try {
+      startSession();
+      setManual(true);
+    } catch {
+      setError('Could not save a session. Check available storage and retry.');
+    }
   }, [busy, startSession]);
 
   const handlePauseResume = useCallback(async () => {
@@ -119,26 +149,33 @@ export default function SessionScreen() {
     // Capture localId before stopSession() resets it to null
     const sessionLocalId = useSessionStore.getState().localId;
     setBusy(true);
-    try { await stop(); } catch { /* The saved count is still valid. */ }
-    stopSession();
-    await stopForegroundService().catch(() => {});
-    setBusy(false);
-    if (sessionLocalId) {
-      setPendingLocalId(sessionLocalId);
-      setMoodVisible(true);
+    try {
+      try { await stop(); } catch { /* The saved count is still valid. */ }
+      stopSession();
+      if (sessionLocalId) {
+        setPendingLocalId(sessionLocalId);
+        setMoodVisible(true);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save the session. Try ending it again.');
+    } finally {
+      await stopForegroundService().catch(() => {});
+      setBusy(false);
     }
   }, [stop, stopSession]);
 
   const handleManualIncrement = useCallback(() => {
-    increment();
-    detectionSignal.value = detectionSignal.value + 1;
-    if (!isPaused) requestNotificationUpdate(useSessionStore.getState().count);
-    else void setNotificationPaused(useSessionStore.getState().count, true).catch(() => {});
-  }, [increment, detectionSignal, isPaused]);
+    handleDetect(1);
+    if (isPaused) void setNotificationPaused(useSessionStore.getState().count, true).catch(() => {});
+  }, [handleDetect, isPaused]);
 
   const handleCorrection = useCallback(() => {
-    decrement();
-    void setNotificationPaused(useSessionStore.getState().count, isPaused).catch(() => {});
+    try {
+      decrement();
+      void setNotificationPaused(useSessionStore.getState().count, isPaused).catch(() => {});
+    } catch {
+      setError('Could not save the correction. Check storage and retry.');
+    }
   }, [decrement, isPaused]);
 
   function handleMoodSelect(mood: string | null) {
@@ -166,10 +203,10 @@ export default function SessionScreen() {
           {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
 
           <View style={styles.actionRow}>
-            <Pressable style={styles.plusButton} onPress={handleManualIncrement} accessibilityRole="button" accessibilityLabel="Add one count">
+            <Pressable style={styles.plusButton} onPress={handleManualIncrement} disabled={isPaused || busy} accessibilityRole="button" accessibilityLabel="Add one count">
               <Text style={styles.plusLabel}>+1</Text>
             </Pressable>
-            <Pressable style={styles.plusButton} onPress={handleCorrection} disabled={count === 0} accessibilityRole="button" accessibilityLabel="Remove one extra count">
+            <Pressable style={styles.plusButton} onPress={handleCorrection} disabled={count === 0 || busy} accessibilityRole="button" accessibilityLabel="Remove one extra count">
               <Text style={styles.plusLabel}>−1</Text>
             </Pressable>
             <Pressable style={styles.stopButton} onPress={handlePauseResume} disabled={busy} accessibilityRole="button" accessibilityLabel={isPaused ? 'Resume session' : 'Pause session'}>

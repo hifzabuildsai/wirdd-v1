@@ -1,0 +1,21 @@
+name: Verify Android app
+
+on:
+  pull_request:
+  push:
+    branches: [release/android-tester-sprint]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - run: npx expo export --platform android
