@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { AndroidSpeechEngine } from '../services/engines/androidSpeechEngine';
 import type { VoiceDetectionEngine } from '../services/engines/voiceDetectionEngine';
@@ -22,6 +22,7 @@ async function requestMicPermission(): Promise<void> {
 export function useVoiceDetection(onDetect: (count: number) => void, onError: (message: string) => void) {
   const engineRef = useRef<VoiceDetectionEngine>(new AndroidSpeechEngine());
   const runningRef = useRef(false);
+  const [listening, setListening] = useState(false);
   const detectRef = useRef(onDetect);
   const errorRef = useRef(onError);
   detectRef.current = onDetect;
@@ -35,6 +36,7 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
     await engineRef.current.start(
       (count) => detectRef.current(count),
       (message) => { failedDuringStartup = true; runningRef.current = false; errorRef.current(message); },
+      setListening,
     );
     if (failedDuringStartup) throw new Error('Microphone stopped during startup. Retry the session.');
     runningRef.current = true;
@@ -42,6 +44,7 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
 
   const stop = useCallback(async () => {
     runningRef.current = false;
+    setListening(false);
     await engineRef.current.stop();
   }, []);
 
@@ -53,5 +56,5 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
     void engineRef.current.destroy();
   }, []);
 
-  return { start, stop, pause, resume };
+  return { start, stop, pause, resume, listening };
 }

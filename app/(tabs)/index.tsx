@@ -82,7 +82,7 @@ export default function SessionScreen() {
     pauseSession();
     void setNotificationPaused(useSessionStore.getState().count, true).catch(() => {});
   }, [pauseSession]);
-  const { start, stop, pause, resume } = useVoiceDetection(handleDetect, handleVoiceError);
+  const { start, stop, pause, resume, listening } = useVoiceDetection(handleDetect, handleVoiceError);
   stopVoiceRef.current = stop;
 
   const handleStart = useCallback(async () => {
@@ -197,8 +197,8 @@ export default function SessionScreen() {
             <CounterCircle count={count} detectionSignal={detectionSignal} />
           </View>
 
-          {!manual && !isPaused && !error ? <ListeningIndicator /> : (
-            <Text style={styles.stateLabel}>{manual ? 'Manual counting' : isPaused ? 'Paused · microphone off' : 'Microphone unavailable'}</Text>
+          {!manual && !isPaused && !error && listening ? <View accessibilityLabel="Microphone listening"><ListeningIndicator /><Text style={styles.stateLabel}>Microphone listening</Text></View> : (
+            <Text style={styles.stateLabel}>{manual ? 'Manual counting' : isPaused ? 'Paused · microphone off' : error ? 'Microphone unavailable' : 'Reconnecting microphone…'}</Text>
           )}
           {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
 

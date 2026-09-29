@@ -12,6 +12,7 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
   private running = false;
   private onDetection: ((count: number) => void) | null = null;
   private onError: ((message: string) => void) | null = null;
+  private onAudioState: ((listening: boolean) => void) | null = null;
   private subscriptions: { remove(): void }[] = [];
   private timer: ReturnType<typeof setTimeout> | null = null;
   private audioWatchdog: ReturnType<typeof setTimeout> | null = null;
@@ -36,10 +37,11 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
     // The native on-device request and language-not-supported error are the gate.
   }
 
-  async start(onDetection: (count: number) => void, onError: (message: string) => void): Promise<void> {
+  async start(onDetection: (count: number) => void, onError: (message: string) => void, onAudioState: (listening: boolean) => void): Promise<void> {
     if (this.running) return;
     this.onDetection = onDetection;
     this.onError = onError;
+    this.onAudioState = onAudioState;
     this.running = true;
     this.failures = 0;
     this.subscriptions = [
@@ -47,12 +49,15 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
         this.clearAudioWatchdog();
         this.cycleHadAudio = true;
         this.failures = 0;
+        this.onAudioState?.(true);
         this.startup?.resolve();
         this.startup = null;
       }),
       ExpoSpeechRecognitionModule.addListener('result', this.handleResult),
       ExpoSpeechRecognitionModule.addListener('error', this.handleError),
+      ExpoSpeechRecognitionModule.addListener('audioend', () => this.onAudioState?.(false)),
       ExpoSpeechRecognitionModule.addListener('end', () => {
+        this.onAudioState?.(false);
         this.clearAudioWatchdog();
         if (!this.running) return;
         if (!this.cycleHadAudio && !this.startup && ++this.failures >= 3) {
@@ -81,6 +86,7 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
 
   async stop(): Promise<void> {
     this.running = false;
+    this.onAudioState?.(false);
     this.clearTimer();
     this.clearAudioWatchdog();
     this.startup?.reject(new Error('Microphone stopped.'));
@@ -89,6 +95,7 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
     this.subscriptions = [];
     this.onDetection = null;
     this.onError = null;
+    this.onAudioState = null;
     try { ExpoSpeechRecognitionModule.abort(); } catch { /* Already stopped. */ }
   }
 
