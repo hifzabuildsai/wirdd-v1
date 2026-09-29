@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
-import { getRecentSummaries, type DailySummary } from '@/services/database';
+import { getRecentSummaries, localDate, type DailySummary } from '@/services/database';
+import { useSessionStore } from '@/stores/sessionStore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ interface WeekDay {
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const;
 
 function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 function buildWeekData(summaries: DailySummary[], today: string): WeekDay[] {
@@ -29,7 +30,7 @@ function buildWeekData(summaries: DailySummary[], today: string): WeekDay[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const date = d.toISOString().slice(0, 10);
+    const date = localDate(d.getTime());
     days.push({
       date,
       label: DAY_LETTERS[d.getDay()],
@@ -114,6 +115,7 @@ const dotStyles = StyleSheet.create({
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function QalbScreen() {
+  const liveCount = useSessionStore(state => state.count);
   const [weekData, setWeekData] = useState<WeekDay[]>([]);
   const [weekTotal, setWeekTotal] = useState(0);
   const [weekSessions, setWeekSessions] = useState(0);
@@ -135,6 +137,15 @@ export default function QalbScreen() {
       );
     }, []),
   );
+
+  useEffect(() => {
+    const summaries = getRecentSummaries(7);
+    const data = buildWeekData(summaries, todayString());
+    setWeekData(data);
+    setWeekTotal(data.reduce((sum, day) => sum + day.count, 0));
+    setWeekSessions(data.reduce((sum, day) =>
+      sum + (summaries.find(summary => summary.date === day.date)?.session_count ?? 0), 0));
+  }, [liveCount]);
 
   const maxCount = Math.max(...weekData.map((d) => d.count), 1);
   const isEmpty = weekTotal === 0;
@@ -180,7 +191,7 @@ export default function QalbScreen() {
       </View>
 
       {isEmpty && (
-        <Text style={styles.emptyHint}>Your heart's history will appear here</Text>
+        <Text style={styles.emptyHint}>Your heart&apos;s history will appear here</Text>
       )}
     </ScrollView>
   );

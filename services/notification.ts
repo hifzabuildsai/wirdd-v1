@@ -19,7 +19,7 @@ export function buildSessionNotification(
   count: number,
   isPaused: boolean,
 ): Notification {
-  const title = isPaused ? 'Wird · Paused' : 'Wird · Listening';
+  const title = isPaused ? 'Wirdd · Paused' : 'Wirdd · Voice session';
   const body = `${count} dhikr this session`;
 
   return {
@@ -34,16 +34,6 @@ export function buildSessionNotification(
       ongoing: true,
       pressAction: { id: 'default' },
       color: '#C8A84B',
-      actions: [
-        {
-          title: isPaused ? 'Resume' : 'Pause',
-          pressAction: { id: isPaused ? 'resume' : 'pause' },
-        },
-        {
-          title: 'End',
-          pressAction: { id: 'end' },
-        },
-      ],
     },
   };
 }

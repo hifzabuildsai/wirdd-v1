@@ -103,8 +103,8 @@ function PrivacySlide({ onBegin }: { onBegin: () => void }) {
     <View style={[slide.container, { width: W }]}>
       <Text style={slide.headline}>Between you{'\n'}and Allah.</Text>
       <Text style={slide.sub}>
-        No audio is stored. No servers hear you.{'\n'}
-        Detection happens on your device, only.
+        Wirdd requests Android&apos;s on-device speech recognizer.{'\n'}
+        Voice counting needs Android 13+ and an installed Arabic on-device model.
       </Text>
       <Pressable style={slide.cta} onPress={onBegin}>
         <Text style={slide.ctaText}>Begin →</Text>
@@ -195,7 +195,7 @@ export default function OnboardingScreen() {
   }
 
   function handleBegin() {
-    router.push('/auth');
+    router.push('/permission');
   }
 
   function renderSlide({ item }: ListRenderItemInfo<SlideKey>) {

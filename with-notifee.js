@@ -6,15 +6,13 @@ function withNotifee(config) {
     if (!app.service) app.service = [];
 
     const already = app.service.some(
-      (s) => s.$?.['android:name'] === 'io.invertase.notifee.NotifeeHeadlessService',
+      (s) => s.$?.['android:name'] === 'app.notifee.core.ForegroundService',
     );
     if (!already) {
       app.service.push({
         $: {
-          'android:name': 'io.invertase.notifee.NotifeeHeadlessService',
+          'android:name': 'app.notifee.core.ForegroundService',
           'android:foregroundServiceType': 'microphone',
-          'android:stopWithTask': 'false',
-          'android:exported': 'false',
         },
       });
     }
