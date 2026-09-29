@@ -20,7 +20,7 @@ export default function SettingsScreen() {
           voice session. It receives text results in memory and saves only
           count events, session times, and an optional mood in local SQLite.
           Wirdd does not record raw audio or save transcripts. An installed
-          Arabic offline model is required for voice counting; if unavailable,
+          Arabic on-device model and Android 13+ are required for voice counting; otherwise,
           use manual counting. No account or app server is used in this edition.
         </Text>
       </View>

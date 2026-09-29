@@ -14,11 +14,11 @@ No Supabase, Paddle, Picovoice, or account credentials are required for the test
 
 ## Architecture and data flow
 
-`app/(tabs)/index.tsx` owns the visible session controls. `useVoiceDetection` obtains Android microphone permission and starts `AndroidSpeechEngine`. The engine requests `requiresOnDeviceRecognition: true` for `ar-SA`, waits for an `audiostart` event, and parses final text results in memory. The app code has no network recognizer fallback. Installed-locale lists are unreliable across recognition services, so the native start result and physical offline test are the gate.
+`app/(tabs)/index.tsx` owns the visible session controls. `useVoiceDetection` obtains Android microphone permission and starts `AndroidSpeechEngine`. On Android 13+ only, the installed native module uses `createOnDeviceSpeechRecognizer` for `requiresOnDeviceRecognition: true`. The engine requests `ar-SA`, waits for an `audiostart` event, and parses final text results in memory. Android 12 is blocked from voice mode because this library uses only an advisory offline intent there. The app code has no network recognizer fallback. Installed-locale lists are unreliable across recognition services, so the native start result and physical airplane-mode test are still the gate.
 
 The first final result in each recognition cycle is counted; alternatives and duplicate final events in that cycle are ignored. Repeated phrases in one transcript are counted individually. The old 1.5-second time debounce was removed. Device accuracy, fast repetitions, false positives, interruptions, and recognition gaps between short recognition cycles are **unverified**.
 
-`sessionStore` records each count change in SQLite (`count_events`) and updates the session count before updating the UI. A process restart closes any unfinished SQLite session with its last committed count. Daily summaries use local calendar dates. Pause turns off recognition; end saves the count and optional mood. Manual mode needs no microphone.
+`sessionStore` records each count change and its daily summary in one SQLite transaction before updating the UI. Detections during microphone startup are buffered until a session row exists. A process restart closes any unfinished SQLite session with its last committed count and rebuilds daily summaries. Daily summaries use local calendar dates. Pause turns off recognition; end saves the count and optional mood. Manual mode needs no microphone.
 
 Notifee displays a foreground notification for voice sessions without a Pro gate. The notification has no quick actions until background action handling has device proof. A notification alone does not prove microphone capture survives a locked screen or process death. If an interrupted process restarts, the last committed count is preserved and the session is closed; it does not invent recitations during the gap.
 
@@ -28,7 +28,7 @@ Wirdd does not save raw audio or transcripts, and the tester flow does not call 
 
 ## Supported scope and limitations
 
-- Android only, preferably Android 13+ with installed on-device Arabic recognition. Device model support is unverified.
+- Android 13+ for voice mode with installed on-device Arabic recognition; manual mode is available on older Android versions. Device model support is unverified.
 - The core voice flow, notification continuity on a locked screen, Bluetooth earbuds, permission changes, and phone calls are pending physical acceptance.
 - Some speech recognizers may not emit a separate final result for each fast repetition. The count can be corrected with +1 and −1.
 - No cloud backup, purchase, payment, custom phrase, export, or account in this tester edition.

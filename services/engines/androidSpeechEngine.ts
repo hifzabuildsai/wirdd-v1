@@ -14,12 +14,20 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
   private onError: ((message: string) => void) | null = null;
   private subscriptions: { remove(): void }[] = [];
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private audioWatchdog: ReturnType<typeof setTimeout> | null = null;
   private startup: { resolve: () => void; reject: (error: Error) => void } | null = null;
   private handledResult = false;
   private failures = 0;
+  private cycleHadAudio = false;
 
   async initialize(): Promise<void> {
     if (Platform.OS !== 'android') throw new Error('Voice sessions require Android.');
+    // The installed native module uses createOnDeviceSpeechRecognizer only on
+    // API 33+. On Android 12 it merely sets EXTRA_PREFER_OFFLINE, which the
+    // recognition provider can ignore. Never enter voice mode on that path.
+    if (Number(Platform.Version) < 33) {
+      throw new Error('Voice counting requires Android 13 or newer. You can count manually.');
+    }
     if (!ExpoSpeechRecognitionModule.isRecognitionAvailable() ||
         !ExpoSpeechRecognitionModule.supportsOnDeviceRecognition()) {
       throw new Error('On-device speech recognition is unavailable on this phone. You can count manually.');
@@ -36,6 +44,8 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
     this.failures = 0;
     this.subscriptions = [
       ExpoSpeechRecognitionModule.addListener('audiostart', () => {
+        this.clearAudioWatchdog();
+        this.cycleHadAudio = true;
         this.failures = 0;
         this.startup?.resolve();
         this.startup = null;
@@ -43,7 +53,13 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
       ExpoSpeechRecognitionModule.addListener('result', this.handleResult),
       ExpoSpeechRecognitionModule.addListener('error', this.handleError),
       ExpoSpeechRecognitionModule.addListener('end', () => {
-        if (this.running) this.scheduleRestart();
+        this.clearAudioWatchdog();
+        if (!this.running) return;
+        if (!this.cycleHadAudio && !this.startup && ++this.failures >= 3) {
+          this.fatal('Microphone could not restart. Pause and retry.');
+          return;
+        }
+        this.scheduleRestart();
       }),
     ];
     try {
@@ -66,6 +82,7 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
   async stop(): Promise<void> {
     this.running = false;
     this.clearTimer();
+    this.clearAudioWatchdog();
     this.startup?.reject(new Error('Microphone stopped.'));
     this.startup = null;
     this.subscriptions.forEach(sub => sub.remove());
@@ -80,6 +97,12 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
   private listen = () => {
     if (!this.running) return;
     this.handledResult = false;
+    this.cycleHadAudio = false;
+    this.clearAudioWatchdog();
+    this.audioWatchdog = setTimeout(() => {
+      this.audioWatchdog = null;
+      this.fatal('Microphone did not restart. Pause and retry.');
+    }, 8000);
     try {
       ExpoSpeechRecognitionModule.start({
         lang: 'ar-SA',
@@ -88,6 +111,7 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
         continuous: false,
       });
     } catch (error) {
+      this.clearAudioWatchdog();
       this.fatal(error instanceof Error ? error.message : 'Speech recognition failed to start.');
     }
   };
@@ -102,7 +126,7 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
 
   private handleError = (event: ExpoSpeechRecognitionErrorEvent) => {
     if (!this.running) return;
-    if (event.error === 'no-speech' || event.error === 'speech-timeout' || event.error === 'aborted') return;
+    if (event.error === 'no-speech' || event.error === 'speech-timeout') return;
     if (event.error === 'busy' || event.error === 'client') {
       if (++this.failures < 3) return;
     }
@@ -130,5 +154,10 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
   private clearTimer() {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+  }
+
+  private clearAudioWatchdog() {
+    if (this.audioWatchdog) clearTimeout(this.audioWatchdog);
+    this.audioWatchdog = null;
   }
 }

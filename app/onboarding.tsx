@@ -104,7 +104,7 @@ function PrivacySlide({ onBegin }: { onBegin: () => void }) {
       <Text style={slide.headline}>Between you{'\n'}and Allah.</Text>
       <Text style={slide.sub}>
         Wirdd requests Android&apos;s on-device speech recognizer.{'\n'}
-        Voice counting needs an installed Arabic offline model.
+        Voice counting needs Android 13+ and an installed Arabic on-device model.
       </Text>
       <Pressable style={slide.cta} onPress={onBegin}>
         <Text style={slide.ctaText}>Begin →</Text>

@@ -6,8 +6,10 @@ Read README.md and the source before changing behavior.
 
 The tester edition has no account or payment flow. Porcupine is not active and
 there is no Arabic keyword asset; do not repeat the older Porcupine claim.
-Android speech recognition is requested with `requiresOnDeviceRecognition: true`
-and `ar-SA`. It requires a capable phone and installed offline Arabic model.
+Voice mode requires Android 13+ because the installed native module uses
+`createOnDeviceSpeechRecognizer` only on API 33+. It requests
+`requiresOnDeviceRecognition: true` and `ar-SA`; it still needs an installed
+Arabic on-device model and physical airplane-mode verification.
 No physical-device accuracy or locked-screen proof has been recorded.
 
 Every count change must reach SQLite before the displayed count changes. The
