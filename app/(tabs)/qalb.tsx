@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
 import { getRecentSummaries, localDate, type DailySummary } from '@/services/database';
+import { useSessionStore } from '@/stores/sessionStore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +115,7 @@ const dotStyles = StyleSheet.create({
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function QalbScreen() {
+  const liveCount = useSessionStore(state => state.count);
   const [weekData, setWeekData] = useState<WeekDay[]>([]);
   const [weekTotal, setWeekTotal] = useState(0);
   const [weekSessions, setWeekSessions] = useState(0);
@@ -135,6 +137,15 @@ export default function QalbScreen() {
       );
     }, []),
   );
+
+  useEffect(() => {
+    const summaries = getRecentSummaries(7);
+    const data = buildWeekData(summaries, todayString());
+    setWeekData(data);
+    setWeekTotal(data.reduce((sum, day) => sum + day.count, 0));
+    setWeekSessions(data.reduce((sum, day) =>
+      sum + (summaries.find(summary => summary.date === day.date)?.session_count ?? 0), 0));
+  }, [liveCount]);
 
   const maxCount = Math.max(...weekData.map((d) => d.count), 1);
   const isEmpty = weekTotal === 0;

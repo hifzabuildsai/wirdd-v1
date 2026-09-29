@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
 import { getRecentSummaries, getRecentSessions, getSummaryByDate, localDate, type DailySummary, type Session } from '@/services/database';
+import { useSessionStore } from '@/stores/sessionStore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ const chartStyles = StyleSheet.create({
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
+  const liveCount = useSessionStore(state => state.count);
   const [todayCount, setTodayCount] = useState(0);
   const [streak, setStreak] = useState(0);
   const [chartData, setChartData] = useState<ChartDay[]>([]);
@@ -156,6 +158,13 @@ export default function DashboardScreen() {
       setSessions(getRecentSessions(10));
     }, []),
   );
+
+  useEffect(() => {
+    const today = todayString();
+    setTodayCount(getSummaryByDate(today)?.total_count ?? 0);
+    setChartData(buildChartData(getRecentSummaries(30), today));
+    setSessions(getRecentSessions(10));
+  }, [liveCount]);
 
   const isEmpty = todayCount === 0 && streak === 0;
 
