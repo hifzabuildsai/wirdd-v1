@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import notifee from '@notifee/react-native';
+import notifee, { AuthorizationStatus } from '@notifee/react-native';
 import {
   buildSessionNotification,
   createSessionChannel,
@@ -34,8 +34,13 @@ export function registerForegroundServiceHandler(): void {
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
-export async function startForegroundService(count: number): Promise<void> {
-  if (Platform.OS !== 'android') return;
+export async function startForegroundService(count: number): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  // Android 13+ may hide foreground-service notices from the notification
+  // drawer when POST_NOTIFICATIONS is denied. Counting can still continue.
+  const notificationVisible = await notifee.requestPermission()
+    .then(settings => settings.authorizationStatus === AuthorizationStatus.AUTHORIZED)
+    .catch(() => false);
   await createSessionChannel();
   await notifee.displayNotification(buildSessionNotification(count, false));
   isRunning = true;
@@ -43,6 +48,7 @@ export async function startForegroundService(count: number): Promise<void> {
   lastKnownCount = count;
   detectionsSinceLastUpdate = 0;
   lastUpdateTime = Date.now();
+  return notificationVisible;
 }
 
 export async function setNotificationPaused(count: number, paused: boolean): Promise<void> {

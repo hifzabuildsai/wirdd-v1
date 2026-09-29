@@ -49,6 +49,7 @@ export default function SessionScreen() {
   const [pendingLocalId, setPendingLocalId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [manual, setManual] = useState(false);
   const startingRef = useRef(false);
   const bufferedRef = useRef(0);
@@ -89,17 +90,19 @@ export default function SessionScreen() {
     if (busy) return;
     setBusy(true);
     setError(null);
+    setNotice(null);
     startingRef.current = true;
     bufferedRef.current = 0;
     startupErrorRef.current = null;
     try {
       await start();
       if (startupErrorRef.current) throw new Error(startupErrorRef.current);
-      await startForegroundService(0);
+      const notificationVisible = await startForegroundService(0);
       if (startupErrorRef.current) throw new Error(startupErrorRef.current);
       startSession();
       startingRef.current = false;
       setManual(false);
+      if (!notificationVisible) setNotice('Notifications are off. Android may hide session status on the lock screen; enable Wirdd notifications in Settings.');
       if (bufferedRef.current > 0) handleDetect(bufferedRef.current);
     } catch (cause) {
       await stop().catch(() => {});
@@ -115,6 +118,7 @@ export default function SessionScreen() {
   const handleManualStart = useCallback(() => {
     if (busy) return;
     setError(null);
+    setNotice(null);
     try {
       startSession();
       setManual(true);
@@ -201,6 +205,7 @@ export default function SessionScreen() {
             <Text style={styles.stateLabel}>{manual ? 'Manual counting' : isPaused ? 'Paused · microphone off' : error ? 'Microphone unavailable' : 'Reconnecting microphone…'}</Text>
           )}
           {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
+          {notice && <Text style={styles.stateLabel} accessibilityRole="alert">{notice}</Text>}
 
           <View style={styles.actionRow}>
             <Pressable style={styles.plusButton} onPress={handleManualIncrement} disabled={isPaused || busy} accessibilityRole="button" accessibilityLabel="Add one count">
