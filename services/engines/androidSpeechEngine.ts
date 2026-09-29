@@ -24,12 +24,8 @@ export class AndroidSpeechEngine implements VoiceDetectionEngine {
         !ExpoSpeechRecognitionModule.supportsOnDeviceRecognition()) {
       throw new Error('On-device speech recognition is unavailable on this phone. You can count manually.');
     }
-    if (Platform.Version >= 33) {
-      const locales = await ExpoSpeechRecognitionModule.getSupportedLocales({});
-      if (!locales.installedLocales.some(locale => locale.toLowerCase().startsWith('ar'))) {
-        throw new Error('Install an Arabic offline speech model in Android settings, then retry. You can count manually meanwhile.');
-      }
-    }
+    // Some recognizers report no installed locales even when a model exists.
+    // The native on-device request and language-not-supported error are the gate.
   }
 
   async start(onDetection: (count: number) => void, onError: (message: string) => void): Promise<void> {

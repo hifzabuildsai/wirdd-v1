@@ -62,7 +62,7 @@ export default function RootLayout() {
 
   // One-shot redirect on first load — fires only when ready transitions true.
   // Using useEffect (not declarative <Redirect>) so it doesn't re-fire while
-  // the user navigates through the onboarding → auth → permission flow.
+  // the user navigates through the onboarding → permission flow.
   useEffect(() => {
     if (!ready) return;
     if (!hasOnboarded) {

@@ -14,7 +14,7 @@ No Supabase, Paddle, Picovoice, or account credentials are required for the test
 
 ## Architecture and data flow
 
-`app/(tabs)/index.tsx` owns the visible session controls. `useVoiceDetection` obtains Android microphone permission and starts `AndroidSpeechEngine`. The engine requests `requiresOnDeviceRecognition: true` for `ar-SA`, waits for an `audiostart` event, and parses final text results in memory. A missing on-device recognizer or Arabic offline model is an error; it never falls back to network recognition. Android 12 may not report installed locales through this library, so the device acceptance test remains essential.
+`app/(tabs)/index.tsx` owns the visible session controls. `useVoiceDetection` obtains Android microphone permission and starts `AndroidSpeechEngine`. The engine requests `requiresOnDeviceRecognition: true` for `ar-SA`, waits for an `audiostart` event, and parses final text results in memory. The app code has no network recognizer fallback. Installed-locale lists are unreliable across recognition services, so the native start result and physical offline test are the gate.
 
 The first final result in each recognition cycle is counted; alternatives and duplicate final events in that cycle are ignored. Repeated phrases in one transcript are counted individually. The old 1.5-second time debounce was removed. Device accuracy, fast repetitions, false positives, interruptions, and recognition gaps between short recognition cycles are **unverified**.
 
