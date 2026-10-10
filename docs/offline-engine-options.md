@@ -1,5 +1,11 @@
 # Android 12 voice feasibility
 
+Update 11 October: S10 APK v4 install/manual history accepted. The new candidate
+integrates checksum-pinned multilingual Whisper tiny + Silero VAD using whisper.rn
+0.7.4 and a local Expo AudioRecord module. It still needs native/device acceptance;
+the earlier feasibility assessment below is retained as decision context. See
+[candidate implementation](android12-voice-candidate.md).
+
 The confirmed test phone is an S10 on Android 12. The current Expo speech module does not guarantee local-only recognition below API 33; the installed native implementation uses an advisory offline preference there. Keep manual mode on this path. Removing the Android 13 guard is not an acceptable substitute for a local engine.
 
 For a separate measured spike, evaluate multilingual Whisper tiny through [whisper.rn](https://github.com/mybigday/whisper.rn), a React Native binding for [whisper.cpp](https://github.com/ggml-org/whisper.cpp). These projects provide Android/local inference integration; they do not prove real-time Astaghfirullah accuracy on the S10. Check New Architecture/Expo SDK 54 build compatibility, memory/CPU/battery, model packaging/license, microphone interruption handling and silence hallucinations. Use Arabic transcription rather than English-only weights. A chunked engine also needs explicit overlap/event deduplication, with no audio/transcript retention or upload.

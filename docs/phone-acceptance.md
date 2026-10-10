@@ -7,18 +7,18 @@ Device / Android version / installer result:
 ## S10 Android 12 — install and manual flow
 
 1. Download the candidate standalone APK completely. Open and install. Record the exact failure text if it fails. With Android Platform Tools, use `adb install -r candidate.apk` to preserve existing app data and capture `INSTALL_FAILED_*`. Never uninstall just to hide an upgrade/signing conflict.
-2. Launch and complete onboarding. Expect manual counting and a clear Android 13+ voice requirement; no mic prompt for unsupported voice.
+2. Launch and complete onboarding. APK v4 offers only manual mode on Android 12. The new Whisper candidate offers offline voice beta and mic permission; manual mode remains available without permission.
 3. Start manual session. Add 20, remove 2; expect 18. Pause: +1 is disabled. Resume, add 2; expect 20. End and skip mood. Dashboard and Qalb agree.
 4. Force-stop/relaunch: expect the saved 20 and closed history. During another session add 5, force-stop/relaunch: expect the five committed counts retained and the interrupted session closed.
 5. Open Settings permissions/support. Attempt deletion during a session: blocked. End, cancel deletion: history retained. Confirm deletion: sessions, counts and progress cleared.
 
-Record each outcome and any exact reproduction steps. This device cannot accept the current voice engine.
+Owner accepted APK v4 install/onboarding/manual sessions 5 + 8 = 13 and reopening retains 13. For the new candidate, first verify upgrade preserves that 13. Do not delete the owner's history for test convenience; deletion tests belong on a disposable device/history.
 
-## Android 13+ — voice proof
+## Android 12+ ARM64 — offline voice proof
 
-Speech service / installed Arabic model / speaker:
+Candidate build/source / bundled model / speaker:
 
-Run with airplane mode enabled after any model installation. Independently tally real recitations; app totals alone are not evidence of accuracy.
+Models are bundled. Start with ten normal recitations, leaving a brief gap and allowing counts to settle. Repeat with airplane mode enabled and Wi-Fi off. Independently tally real recitations; app totals alone are not evidence of accuracy.
 
 | Block | Actual | Detected | Misses | Extras | Notes |
 | --- | ---: | ---: | ---: | ---: | --- |

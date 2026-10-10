@@ -31,7 +31,7 @@ export default function PermissionScreen() {
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const voiceSupported = Platform.OS === 'android' && Number(Platform.Version) >= 33;
+  const voiceSupported = Platform.OS === 'android';
 
   async function handleAllow() {
     if (busy) return;
@@ -70,8 +70,8 @@ export default function PermissionScreen() {
       <Text style={styles.heading}>{voiceSupported ? 'Wirdd needs your microphone' : 'Count manually on this phone'}</Text>
       <Text style={styles.body}>
         {voiceSupported
-          ? 'Wirdd counts during an open session. An Arabic on-device speech model is required for automatic counting. Manual counting works without it.'
-          : 'Voice counting requires Android 13 or newer. Manual counting works without a microphone.'}
+          ? 'Wirdd processes your voice on this phone using its included offline model. Voice counting is in beta; manual counting works without microphone access.'
+          : 'Voice counting requires Android. Manual counting works without a microphone.'}
       </Text>
 
       {voiceSupported && <Pressable style={styles.allowBtn} onPress={handleAllow} disabled={busy} accessibilityRole="button">
@@ -92,8 +92,8 @@ export default function PermissionScreen() {
       {expanded && (
         <View style={styles.howContent}>
           <Text style={styles.howText}>
-            On Android 13 or newer, Wirdd asks for on-device Arabic speech recognition and reads the resulting
-            text in memory to count Astaghfirullah. Wirdd does not save raw audio or transcripts.
+            Wirdd processes microphone audio and Arabic recognition results in memory to count
+            Astaghfirullah. Wirdd does not save raw audio or transcripts, or send them to a server.
             Voice counting stops when you pause or end a session, leave the app, or lock the screen.
           </Text>
         </View>

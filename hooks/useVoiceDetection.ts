@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
-import { AndroidSpeechEngine } from '../services/engines/androidSpeechEngine';
+import { WhisperEngine } from '../services/engines/whisperEngine';
 import type { VoiceDetectionEngine } from '../services/engines/voiceDetectionEngine';
 
 async function requestMicPermission(): Promise<void> {
@@ -20,7 +20,7 @@ async function requestMicPermission(): Promise<void> {
 }
 
 export function useVoiceDetection(onDetect: (count: number) => void, onError: (message: string) => void) {
-  const engineRef = useRef<VoiceDetectionEngine>(new AndroidSpeechEngine());
+  const engineRef = useRef<VoiceDetectionEngine>(new WhisperEngine());
   const runningRef = useRef(false);
   const generationRef = useRef(0);
   const pendingRef = useRef<Promise<void> | null>(null);

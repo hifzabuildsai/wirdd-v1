@@ -6,7 +6,7 @@ Android local Astaghfirullah sessions, corrections, pause/resume/end, optional m
 
 ## Available device
 
-Owner confirmed Samsung S10, Android 12. This device can test APK installation, manual sessions, deletion and durable history. Current voice engine rejects Android below 13 before requesting microphone access. Voice on this S10 requires a different offline engine; allowing Android's advisory offline intent would weaken the privacy guarantee. No supported Android 13+ test device is confirmed.
+Owner confirmed Samsung S10, Android 12. APK v4 installed through ADB after freeing storage from 616 MB to 4.2 GB. Exact installer error: `INSTALL_FAILED_INSUFFICIENT_STORAGE`. Owner recording verifies onboarding/navigation. Manual sessions 5 + 8 show total 13, retained after closing/reopening. See `outputs/s10-manual-acceptance.json`. The new Whisper/Silero candidate targets offline voice on Android 12; physical accuracy remains pending. See `docs/android12-voice-candidate.md`.
 
 ## Baseline APK inspection
 
@@ -14,7 +14,7 @@ EAS build `ce8bf55c-4348-40e6-ac08-c3e215804358`, preview, commit `674a2057e04f0
 
 Package `app.wirdd.android`, versionCode 2, minSdk 24, targetSdk 36; ARM64 and ARMv7 included; bundled JS present. ZIP CRC passed. Baseline certificate SHA-256 `52b3206a45c3e50561c6a1aa815152910fd5bcc0a5c5eeaea5f7293ebd3758c6`. See `outputs/baseline-apk-inspection.json` for file hash and details. Certificate extraction is not signature verification.
 
-Android 12 compatibility is not the apparent install blocker. The failed download has not been matched to this build, and no exact installer/ADB error has been supplied. Do not uninstall existing history as a routine workaround.
+S10 installation/manual durability is confirmed. No uninstall or history deletion was needed.
 
 ## Implemented
 

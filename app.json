@@ -45,6 +45,7 @@
     "plugins": [
       "expo-router",
       "./with-notifee",
+      "./with-offline-voice",
       [
         "expo-splash-screen",
         {

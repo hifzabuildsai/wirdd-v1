@@ -11,8 +11,8 @@ export const Colors = {
 
   // Text hierarchy
   textPrimary: '#F0EDE8',
-  textSecondary: '#7C7A8E',
-  textMuted: '#3D3C50',
+  textSecondary: '#AAA7BA',
+  textMuted: '#858297',
 
   // Borders
   border: '#1A1C2E',
@@ -20,7 +20,7 @@ export const Colors = {
 
   // Tab bar
   tabActive: '#C8A84B',
-  tabInactive: '#3D3C50',
+  tabInactive: '#858297',
   tabBar: '#0A0C18',
   tabBarBorder: '#12142A',
 

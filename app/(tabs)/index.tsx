@@ -31,7 +31,7 @@ const MOODS = [
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function SessionScreen() {
-  const voiceSupported = Platform.OS === 'android' && Number(Platform.Version) >= 33;
+  const voiceSupported = Platform.OS === 'android';
   const router = useRouter();
   const {
     isActive,
@@ -274,7 +274,8 @@ export default function SessionScreen() {
           <Pressable style={[styles.startButton, !voiceSupported && { opacity: 0.4 }]} onPress={handleStart} disabled={busy || !voiceSupported} accessibilityRole="button" accessibilityLabel="Start voice session" accessibilityState={{ disabled: busy || !voiceSupported }}>
             <Ionicons name="mic" size={30} color={Colors.background} />
           </Pressable>
-          <Text style={styles.startHint}>{busy ? 'Starting microphone…' : voiceSupported ? 'Tap to start voice counting' : 'Voice requires Android 13+ · count manually below'}</Text>
+          <Text style={styles.startHint}>{busy ? 'Preparing offline voice…' : voiceSupported ? 'Tap to start offline voice · beta' : 'Voice requires Android · count manually below'}</Text>
+          {voiceSupported && <Text style={styles.stateLabel}>Recite clearly, then pause briefly. Counts may take a few seconds.</Text>}
           {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
           <Pressable onPress={handleManualStart} disabled={busy} accessibilityRole="button" accessibilityLabel="Start manual count">
             <Text style={styles.stateLabel}>Count manually instead</Text>

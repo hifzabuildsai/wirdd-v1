@@ -44,8 +44,8 @@ export default function SettingsScreen() {
       {notice && <Text style={styles.body} accessibilityRole="alert">{notice}</Text>}
       <View style={styles.card}>
         <Text style={styles.label}>VOICE & PERMISSIONS</Text>
-        <Text style={styles.body}>Voice counting requires Android 13+ and an installed Arabic on-device speech model. Manual counting is available without microphone access.</Text>
-        <Text style={styles.body}>If Arabic recognition is unavailable, check your phone’s speech service settings for an Arabic offline model. Model availability varies by device. Retry voice counting in airplane mode after setup.</Text>
+        <Text style={styles.body}>Offline voice counting is in beta on Android, including Android 12. The Arabic recognition model is included in the app. Manual counting is available without microphone access.</Text>
+        <Text style={styles.body}>Recite clearly and pause briefly so Wirdd can finish counting. Results may take a few seconds. Accuracy still needs device testing; correct missed or extra counts with +1 and −1.</Text>
         <Pressable style={styles.button} onPress={openSettings} accessibilityRole="button">
           <Text style={styles.buttonText}>Microphone & notification settings</Text>
         </Pressable>
