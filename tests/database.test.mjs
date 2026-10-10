@@ -143,9 +143,12 @@ test('SQLite durability and summary consistency', async t => {
     sql.exec('DROP INDEX count_events_local_date; DROP INDEX sessions_local_date; ALTER TABLE count_events DROP COLUMN local_date; ALTER TABLE sessions DROP COLUMN local_date;');
     const now = Date.now();
     sql.prepare('INSERT INTO sessions (local_id, started_at, ended_at, count) VALUES (?, ?, ?, ?)').run('old-schema', now, now, 7);
+    sql.prepare('INSERT INTO daily_summaries (date, total_count, session_count) VALUES (?, ?, ?)').run('2020-01-01', 7, 1);
     db.initDatabase();
     db.recoverInterruptedSessions();
     assert.equal(db.getSummaryByDate(db.localDate(now)).total_count, 7);
+    assert.equal(db.getSummaryByDate('2020-01-01').total_count, 0);
+    assert.equal(db.getSummaryByDate('2020-01-01').session_count, 0);
     assert.equal(db.getSessionsByDate(db.localDate(now))[0].count, 7);
   });
 });

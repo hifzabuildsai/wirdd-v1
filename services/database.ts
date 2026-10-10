@@ -119,6 +119,11 @@ export function recoverInterruptedSessions(): number {
     db!.runSync('UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL', [now]);
     // Repair an older summary if the process died after a count was committed.
     const dates = new Set<string>([localDate(now)]);
+    // A migrated timestamp can land on a different day. Rebuild old summary
+    // dates too so an obsolete cached total cannot duplicate the same history.
+    for (const row of db!.getAllSync<{ date: string }>('SELECT date FROM daily_summaries')) {
+      dates.add(row.date);
+    }
     for (const row of db!.getAllSync<{ local_date: string }>('SELECT DISTINCT local_date FROM count_events')) {
       dates.add(row.local_date);
     }
