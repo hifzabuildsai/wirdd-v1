@@ -22,27 +22,43 @@ async function requestMicPermission(): Promise<void> {
 export function useVoiceDetection(onDetect: (count: number) => void, onError: (message: string) => void) {
   const engineRef = useRef<VoiceDetectionEngine>(new AndroidSpeechEngine());
   const runningRef = useRef(false);
+  const generationRef = useRef(0);
+  const pendingRef = useRef<Promise<void> | null>(null);
   const [listening, setListening] = useState(false);
   const detectRef = useRef(onDetect);
   const errorRef = useRef(onError);
   detectRef.current = onDetect;
   errorRef.current = onError;
 
-  const start = useCallback(async () => {
-    if (runningRef.current) return;
-    await requestMicPermission();
-    await engineRef.current.initialize();
-    let failedDuringStartup = false;
-    await engineRef.current.start(
-      (count) => detectRef.current(count),
-      (message) => { failedDuringStartup = true; runningRef.current = false; errorRef.current(message); },
-      setListening,
-    );
-    if (failedDuringStartup) throw new Error('Microphone stopped during startup. Retry the session.');
-    runningRef.current = true;
+  const start = useCallback(() => {
+    if (pendingRef.current) return pendingRef.current;
+    if (runningRef.current) return Promise.resolve();
+    const generation = ++generationRef.current;
+    const ensureCurrent = () => {
+      if (generation !== generationRef.current) throw new Error('Microphone start cancelled.');
+    };
+    const operation = (async () => {
+      await engineRef.current.initialize();
+      ensureCurrent();
+      await requestMicPermission();
+      ensureCurrent();
+      let failedDuringStartup = false;
+      await engineRef.current.start(
+        (count) => detectRef.current(count),
+        (message) => { failedDuringStartup = true; runningRef.current = false; errorRef.current(message); },
+        (value) => { if (generation === generationRef.current) setListening(value); },
+      );
+      ensureCurrent();
+      if (failedDuringStartup) throw new Error('Microphone stopped during startup. Retry the session.');
+      runningRef.current = true;
+    })();
+    pendingRef.current = operation;
+    void operation.finally(() => { pendingRef.current = null; }).catch(() => {});
+    return operation;
   }, []);
 
   const stop = useCallback(async () => {
+    generationRef.current++;
     runningRef.current = false;
     setListening(false);
     await engineRef.current.stop();
@@ -52,6 +68,7 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
   const resume = start;
 
   useEffect(() => () => {
+    generationRef.current++;
     runningRef.current = false;
     void engineRef.current.destroy();
   }, []);

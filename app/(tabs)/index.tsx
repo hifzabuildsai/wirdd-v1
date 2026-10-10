@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, Modal, Platform, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,11 +31,13 @@ const MOODS = [
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function SessionScreen() {
+  const voiceSupported = Platform.OS === 'android' && Number(Platform.Version) >= 33;
   const router = useRouter();
   const {
     isActive,
     isPaused,
     count,
+    mode,
     startSession,
     stopSession,
     pauseSession,
@@ -50,15 +52,15 @@ export default function SessionScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [manual, setManual] = useState(false);
+  const manual = mode === 'manual';
   const startingRef = useRef(false);
   const bufferedRef = useRef(0);
   const startupErrorRef = useRef<string | null>(null);
   const stopVoiceRef = useRef<(() => Promise<void>) | null>(null);
 
   const handleDetect = useCallback((detected: number) => {
+    if (startingRef.current) { bufferedRef.current += detected; return; }
     if (!useSessionStore.getState().isActive) {
-      if (startingRef.current) bufferedRef.current += detected;
       return;
     }
     try {
@@ -72,19 +74,40 @@ export default function SessionScreen() {
     } catch {
       pauseSession();
       void stopVoiceRef.current?.();
-      void setNotificationPaused(useSessionStore.getState().count, true).catch(() => {});
+      void stopForegroundService().catch(() => {});
       setError('Could not save a count. Microphone paused; check storage and retry.');
     }
   }, [increment, pauseSession, detectionSignal]);
 
   const handleVoiceError = useCallback((message: string) => {
-    if (startingRef.current) startupErrorRef.current = message;
+    startupErrorRef.current = message;
     setError(message);
     pauseSession();
-    void setNotificationPaused(useSessionStore.getState().count, true).catch(() => {});
+    void stopVoiceRef.current?.().catch(() => {});
+    void stopForegroundService().catch(() => {});
   }, [pauseSession]);
   const { start, stop, pause, resume, listening } = useVoiceDetection(handleDetect, handleVoiceError);
   stopVoiceRef.current = stop;
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active' || manual) return;
+      const session = useSessionStore.getState();
+      if (!session.isActive && !startingRef.current) return;
+      startupErrorRef.current = 'Voice paused when Wirdd left the foreground.';
+      pauseSession();
+      void stop().catch(() => {});
+      void stopForegroundService().catch(() => {});
+      setNotice('Voice paused because the app was backgrounded or the screen locked. Return here and tap Resume.');
+    });
+    return () => { subscription.remove(); };
+  }, [manual, pauseSession, stop]);
+
+  useEffect(() => () => {
+    // A surviving store session must not claim its destroyed engine is running.
+    useSessionStore.getState().pauseSession();
+    void stopForegroundService().catch(() => {});
+  }, []);
 
   const handleStart = useCallback(async () => {
     if (busy) return;
@@ -96,13 +119,14 @@ export default function SessionScreen() {
     startupErrorRef.current = null;
     try {
       await start();
+      if (AppState.currentState !== 'active') throw new Error('Keep Wirdd open to start voice counting.');
       if (startupErrorRef.current) throw new Error(startupErrorRef.current);
       const notificationVisible = await startForegroundService(0);
+      if (AppState.currentState !== 'active') throw new Error('Keep Wirdd open to start voice counting.');
       if (startupErrorRef.current) throw new Error(startupErrorRef.current);
       startSession();
       startingRef.current = false;
-      setManual(false);
-      if (!notificationVisible) setNotice('Notifications are off. Android may hide session status on the lock screen; enable Wirdd notifications in Settings.');
+      setNotice(notificationVisible ? 'Keep Wirdd open. Voice pauses when the app is backgrounded or the screen locks.' : 'Notifications are off. Keep Wirdd open; voice pauses in the background or when the screen locks.');
       if (bufferedRef.current > 0) handleDetect(bufferedRef.current);
     } catch (cause) {
       await stop().catch(() => {});
@@ -120,8 +144,7 @@ export default function SessionScreen() {
     setError(null);
     setNotice(null);
     try {
-      startSession();
-      setManual(true);
+      startSession('manual');
     } catch {
       setError('Could not save a session. Check available storage and retry.');
     }
@@ -130,26 +153,42 @@ export default function SessionScreen() {
   const handlePauseResume = useCallback(async () => {
     if (busy) return;
     setBusy(true);
+    startupErrorRef.current = null;
     try {
       if (isPaused) {
-        if (!manual) await resume();
+        if (!manual) {
+          startingRef.current = true;
+          bufferedRef.current = 0;
+          await resume();
+          if (AppState.currentState !== 'active') throw new Error('Keep Wirdd open to resume voice counting.');
+          if (startupErrorRef.current) throw new Error(startupErrorRef.current);
+          await startForegroundService(useSessionStore.getState().count);
+          if (startupErrorRef.current || AppState.currentState !== 'active') throw new Error('Voice paused during resume. Keep Wirdd open and retry.');
+        }
         resumeSession();
-        await setNotificationPaused(useSessionStore.getState().count, false);
+        startingRef.current = false;
+        if (bufferedRef.current > 0) handleDetect(bufferedRef.current);
         setError(null);
+        if (!manual) setNotice('Keep Wirdd open. Voice pauses when the app is backgrounded or the screen locks.');
       } else {
         if (!manual) await pause();
         pauseSession();
-        await setNotificationPaused(useSessionStore.getState().count, true);
+        await stopForegroundService();
       }
     } catch (cause) {
+      await stop().catch(() => {});
       pauseSession();
+      await stopForegroundService().catch(() => {});
       setError(cause instanceof Error ? cause.message : 'Microphone could not resume.');
     } finally {
+      startingRef.current = false;
+      bufferedRef.current = 0;
       setBusy(false);
     }
-  }, [busy, isPaused, manual, pause, resume, pauseSession, resumeSession]);
+  }, [busy, isPaused, manual, pause, resume, stop, pauseSession, resumeSession, handleDetect]);
 
   const handleStop = useCallback(async () => {
+    if (busy) return;
     // Capture localId before stopSession() resets it to null
     const sessionLocalId = useSessionStore.getState().localId;
     setBusy(true);
@@ -161,12 +200,13 @@ export default function SessionScreen() {
         setMoodVisible(true);
       }
     } catch (cause) {
+      pauseSession();
       setError(cause instanceof Error ? cause.message : 'Could not save the session. Try ending it again.');
     } finally {
       await stopForegroundService().catch(() => {});
       setBusy(false);
     }
-  }, [stop, stopSession]);
+  }, [busy, stop, stopSession, pauseSession]);
 
   const handleManualIncrement = useCallback(() => {
     handleDetect(1);
@@ -184,7 +224,11 @@ export default function SessionScreen() {
 
   function handleMoodSelect(mood: string | null) {
     if (mood && pendingLocalId) {
-      updateSessionMood(pendingLocalId, mood);
+      try { updateSessionMood(pendingLocalId, mood); }
+      catch {
+        setError('Session saved, but the mood could not be saved. Retry or skip.');
+        return;
+      }
     }
     setMoodVisible(false);
     setPendingLocalId(null);
@@ -227,10 +271,10 @@ export default function SessionScreen() {
         <View style={styles.idleContainer}>
           <Text style={styles.arabicPhrase}>أَسْتَغْفِرُ اللّٰه</Text>
           <Text style={styles.latinPhrase}>Astaghfirullah</Text>
-          <Pressable style={styles.startButton} onPress={handleStart} disabled={busy} accessibilityRole="button" accessibilityLabel="Start voice session">
+          <Pressable style={[styles.startButton, !voiceSupported && { opacity: 0.4 }]} onPress={handleStart} disabled={busy || !voiceSupported} accessibilityRole="button" accessibilityLabel="Start voice session" accessibilityState={{ disabled: busy || !voiceSupported }}>
             <Ionicons name="mic" size={30} color={Colors.background} />
           </Pressable>
-          <Text style={styles.startHint}>{busy ? 'Starting microphone…' : 'Tap to start voice counting'}</Text>
+          <Text style={styles.startHint}>{busy ? 'Starting microphone…' : voiceSupported ? 'Tap to start voice counting' : 'Voice requires Android 13+ · count manually below'}</Text>
           {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
           <Pressable onPress={handleManualStart} disabled={busy} accessibilityRole="button" accessibilityLabel="Start manual count">
             <Text style={styles.stateLabel}>Count manually instead</Text>
@@ -253,6 +297,7 @@ export default function SessionScreen() {
                 <Text style={modal.skip}>Skip</Text>
               </Pressable>
             </View>
+            {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
 
             {MOODS.map(({ emoji, label, key }) => (
               <Pressable key={key} style={modal.row} onPress={() => handleMoodSelect(key)}>

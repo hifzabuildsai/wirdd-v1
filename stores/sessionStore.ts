@@ -13,7 +13,8 @@ interface SessionState {
   startedAt: number | null;
   localId: string | null;
   phraseId: string;
-  startSession: () => void;
+  mode: 'voice' | 'manual';
+  startSession: (mode?: 'voice' | 'manual') => void;
   stopSession: () => void;
   pauseSession: () => void;
   resumeSession: () => void;
@@ -28,13 +29,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   startedAt: null,
   localId: null,
   phraseId: 'astaghfirullah',
+  mode: 'voice',
 
-  startSession: () => {
+  startSession: (mode = 'voice') => {
     if (get().isActive) return;
     const localId = makeLocalId();
     const startedAt = Date.now();
     insertSession(localId, startedAt, get().phraseId);
-    set({ isActive: true, isPaused: false, count: 0, startedAt, localId });
+    set({ isActive: true, isPaused: false, count: 0, startedAt, localId, mode });
   },
 
   stopSession: () => {
@@ -42,7 +44,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!localId || startedAt === null) return;
     const endedAt = Date.now();
     endSession(localId, endedAt, count);
-    set({ isActive: false, isPaused: false, startedAt: null, localId: null });
+    set({ isActive: false, isPaused: false, startedAt: null, localId: null, mode: 'voice' });
   },
 
   pauseSession: () => { if (get().isActive) set({ isPaused: true }); },

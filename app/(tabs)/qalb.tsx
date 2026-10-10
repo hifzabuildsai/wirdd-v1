@@ -6,6 +6,7 @@ import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
 import { getRecentSummaries, localDate, type DailySummary } from '@/services/database';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useProgressRefresh } from '@/hooks/useProgressRefresh';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ const dotStyles = StyleSheet.create({
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function QalbScreen() {
+  const revision = useProgressRefresh();
   const liveCount = useSessionStore(state => state.count);
   const [weekData, setWeekData] = useState<WeekDay[]>([]);
   const [weekTotal, setWeekTotal] = useState(0);
@@ -145,7 +147,7 @@ export default function QalbScreen() {
     setWeekTotal(data.reduce((sum, day) => sum + day.count, 0));
     setWeekSessions(data.reduce((sum, day) =>
       sum + (summaries.find(summary => summary.date === day.date)?.session_count ?? 0), 0));
-  }, [liveCount]);
+  }, [liveCount, revision]);
 
   const maxCount = Math.max(...weekData.map((d) => d.count), 1);
   const isEmpty = weekTotal === 0;

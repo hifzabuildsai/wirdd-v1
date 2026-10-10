@@ -4,7 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/colors';
 import { initDatabase, recoverInterruptedSessions } from '@/services/database';
@@ -40,25 +40,37 @@ export default function RootLayout() {
   });
 
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
+  const [storageReady, setStorageReady] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    initDatabase();
-    recoverInterruptedSessions();
+    let cancelled = false;
+    async function initialize() {
+      try {
+        initDatabase();
+        recoverInterruptedSessions();
+        const value = await AsyncStorage.getItem('@wirdd/onboarded');
+        if (!cancelled) {
+          setHasOnboarded(value === '1');
+          setStorageReady(true);
+          setStartupError(null);
+        }
+      } catch {
+        if (!cancelled) setStartupError('Wirdd could not open your saved history. Check available storage and retry.');
+      }
+    }
     void stopForegroundService().catch(() => {});
-  }, []);
+    void initialize();
+    return () => { cancelled = true; };
+  }, [attempt]);
+
+
+  const ready = (fontsLoaded || fontError != null) && hasOnboarded !== null && storageReady;
 
   useEffect(() => {
-    AsyncStorage.getItem('@wirdd/onboarded').then((value) => {
-      setHasOnboarded(value === '1');
-    });
-  }, []);
-
-
-  const ready = (fontsLoaded || fontError != null) && hasOnboarded !== null;
-
-  useEffect(() => {
-    if (ready) SplashScreen.hideAsync();
-  }, [ready]);
+    if (ready || startupError) void SplashScreen.hideAsync();
+  }, [ready, startupError]);
 
   // One-shot redirect on first load — fires only when ready transitions true.
   // Using useEffect (not declarative <Redirect>) so it doesn't re-fire while
@@ -71,6 +83,14 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
+  if (startupError) return (
+    <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: 'center', padding: 32, gap: 24 }}>
+      <Text accessibilityRole="alert" style={{ color: Colors.textPrimary, fontSize: 18 }}>{startupError}</Text>
+      <Pressable accessibilityRole="button" onPress={() => { setStartupError(null); setAttempt(value => value + 1); }} style={{ minHeight: 48, justifyContent: 'center' }}>
+        <Text style={{ color: Colors.gold, fontSize: 18 }}>Retry</Text>
+      </Pressable>
+    </View>
+  );
   if (!ready) return null;
 
   return (

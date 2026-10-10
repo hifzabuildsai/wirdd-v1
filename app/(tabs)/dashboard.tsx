@@ -4,7 +4,9 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
-import { getRecentSummaries, getRecentSessions, getSummaryByDate, localDate, type DailySummary, type Session } from '@/services/database';
+import { getActiveSummaries, getRecentSummaries, getRecentSessions, getSummaryByDate, localDate, type DailySummary, type Session } from '@/services/database';
+import { computeStreak } from '@/services/dates';
+import { useProgressRefresh } from '@/hooks/useProgressRefresh';
 import { useSessionStore } from '@/stores/sessionStore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -39,21 +41,6 @@ function buildChartData(summaries: DailySummary[], today: string): ChartDay[] {
     });
   }
   return days;
-}
-
-function computeStreak(summaries: DailySummary[], today: string): number {
-  const map = new Map(summaries.map((s) => [s.date, s.total_count]));
-  let streak = 0;
-  const cursor = new Date(today);
-  while (true) {
-    const date = localDate(cursor.getTime());
-    const count = map.get(date) ?? 0;
-    if (count === 0) break;
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-    if (streak > summaries.length) break;
-  }
-  return streak;
 }
 
 // ── BarChart ───────────────────────────────────────────────────────────────
@@ -140,6 +127,7 @@ const chartStyles = StyleSheet.create({
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
+  const revision = useProgressRefresh();
   const liveCount = useSessionStore(state => state.count);
   const [todayCount, setTodayCount] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -153,7 +141,7 @@ export default function DashboardScreen() {
       const todaySummary = getSummaryByDate(today);
 
       setTodayCount(todaySummary?.total_count ?? 0);
-      setStreak(computeStreak(summaries, today));
+      setStreak(computeStreak(getActiveSummaries(), today));
       setChartData(buildChartData(summaries, today));
       setSessions(getRecentSessions(10));
     }, []),
@@ -162,9 +150,10 @@ export default function DashboardScreen() {
   useEffect(() => {
     const today = todayString();
     setTodayCount(getSummaryByDate(today)?.total_count ?? 0);
+    setStreak(computeStreak(getActiveSummaries(), today));
     setChartData(buildChartData(getRecentSummaries(30), today));
     setSessions(getRecentSessions(10));
-  }, [liveCount]);
+  }, [liveCount, revision]);
 
   const isEmpty = todayCount === 0 && streak === 0;
 

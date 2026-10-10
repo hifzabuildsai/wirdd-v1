@@ -188,10 +188,13 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const listRef = useRef<FlatList<SlideKey>>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSkip() {
-    AsyncStorage.setItem('@wirdd/onboarded', '1');
-    router.replace('/(tabs)');
+  async function handleSkip() {
+    try {
+      await AsyncStorage.setItem('@wirdd/onboarded', '1');
+      router.replace('/(tabs)');
+    } catch { setError('Could not save setup. Check storage and retry.'); }
   }
 
   function handleBegin() {
@@ -213,6 +216,7 @@ export default function OnboardingScreen() {
       <Pressable style={styles.skipBtn} onPress={handleSkip} hitSlop={16}>
         <Text style={styles.skipText}>Skip</Text>
       </Pressable>
+      {error && <Text accessibilityRole="alert" style={{ color: Colors.gold, paddingHorizontal: 24, paddingTop: 100 }}>{error}</Text>}
 
       {/* Slides */}
       <FlatList<SlideKey>

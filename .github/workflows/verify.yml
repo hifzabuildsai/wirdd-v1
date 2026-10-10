@@ -3,7 +3,7 @@ name: Verify Android app
 on:
   pull_request:
   push:
-    branches: [release/android-tester-sprint]
+    branches: [main, release/android-tester-sprint, 'codex/**']
 
 jobs:
   checks:

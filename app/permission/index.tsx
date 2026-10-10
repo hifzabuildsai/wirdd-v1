@@ -30,9 +30,12 @@ export default function PermissionScreen() {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const voiceSupported = Platform.OS === 'android' && Number(Platform.Version) >= 33;
 
   async function handleAllow() {
+    if (busy) return;
+    setBusy(true);
     try {
       const permission = await ExpoSpeechRecognitionModule.requestMicrophonePermissionsAsync();
       if (!permission.granted) {
@@ -42,11 +45,15 @@ export default function PermissionScreen() {
       await completeOnboarding(router);
     } catch {
       setError('Could not request microphone permission. Continue manually and retry from a voice session.');
-    }
+    } finally { setBusy(false); }
   }
 
   async function handleSkip() {
-    await completeOnboarding(router);
+    if (busy) return;
+    setBusy(true);
+    try { await completeOnboarding(router); }
+    catch { setError('Could not save setup. Check storage and retry.'); }
+    finally { setBusy(false); }
   }
 
   function toggleExpanded() {
@@ -67,7 +74,7 @@ export default function PermissionScreen() {
           : 'Voice counting requires Android 13 or newer. Manual counting works without a microphone.'}
       </Text>
 
-      {voiceSupported && <Pressable style={styles.allowBtn} onPress={handleAllow} accessibilityRole="button">
+      {voiceSupported && <Pressable style={styles.allowBtn} onPress={handleAllow} disabled={busy} accessibilityRole="button">
         <Text style={styles.allowText}>Allow microphone</Text>
       </Pressable>}
       {error && <Text style={styles.body} accessibilityRole="alert">{error}</Text>}
@@ -87,12 +94,12 @@ export default function PermissionScreen() {
           <Text style={styles.howText}>
             On Android 13 or newer, Wirdd asks for on-device Arabic speech recognition and reads the resulting
             text in memory to count Astaghfirullah. Wirdd does not save raw audio or transcripts.
-            Voice counting stops when you pause or end a session.
+            Voice counting stops when you pause or end a session, leave the app, or lock the screen.
           </Text>
         </View>
       )}
 
-      <Pressable style={styles.skipLink} onPress={handleSkip}>
+      <Pressable style={styles.skipLink} onPress={handleSkip} disabled={busy} accessibilityRole="button">
         <Text style={styles.skipLinkText}>{voiceSupported ? 'Not now · count manually' : 'Continue to manual counting'}</Text>
       </Pressable>
     </ScrollView>
