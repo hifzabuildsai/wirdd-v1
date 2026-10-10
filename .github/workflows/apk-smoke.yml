@@ -32,7 +32,8 @@ jobs:
           for name, url, sha in artifacts:
             if not re.fullmatch(r'https://expo\.dev/artifacts/eas/[A-Za-z0-9_-]+\.apk', url):
               raise ValueError('Unexpected artifact URL')
-            data = urllib.request.urlopen(url, timeout=90).read()
+            request = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) WirddInstallerSmoke/1.0'})
+            data = urllib.request.urlopen(request, timeout=90).read()
             if hashlib.sha256(data).hexdigest() != sha:
               raise ValueError('Artifact checksum mismatch')
             Path(os.environ['RUNNER_TEMP'], name + '.apk').write_bytes(data)
