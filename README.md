@@ -51,4 +51,6 @@ Preview builds explicitly use APK packaging and increment the remote versionCode
 
 See [release status](docs/release-status.md) and [phone test sheet](docs/phone-acceptance.md). Expo Doctor flags `@notifee/react-native` as unmaintained in React Native Directory. It is retained for this beta's existing notification integration; native build and device tests remain required, and its maintenance/compatibility decision remains open for production.
 
+The APK smoke workflow downloads checksum-pinned EAS artifacts and uses a disposable Android 12 emulator to check baseline install, upgrade preserving a three-count manual session, restart preservation, and candidate clean installation. It retains installer output, UI XML, screenshots and logcat. The script rejects physical devices. Emulator results do not establish S10 installation or microphone accuracy.
+
 Do not call the release accepted until these results and a reviewed APK are recorded. Send tester feedback to the person who invited you.

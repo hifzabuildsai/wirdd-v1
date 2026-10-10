@@ -1,0 +1,57 @@
+name: Install signed APK on Android 12
+
+on:
+  push:
+    branches: [release/android-tester-sprint, main]
+    paths:
+      - outputs/candidate-build.json
+      - .github/workflows/apk-smoke.yml
+      - scripts/android_smoke.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified candidate and baseline
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, urllib.request
+          from pathlib import Path
+          candidate = json.loads(Path('outputs/candidate-build.json').read_text())
+          baseline = json.loads(Path('outputs/baseline-apk-inspection.json').read_text())
+          artifacts = [
+            ('candidate', candidate['apk_url'], candidate['apk_sha256']),
+            ('baseline', 'https://expo.dev/artifacts/eas/1pxFjrB7XKSq3_v4_K6QT3J15WzKcoKxmWIH7OkNz98.apk', baseline['sha256']),
+          ]
+          for name, url, sha in artifacts:
+            if not re.fullmatch(r'https://expo\.dev/artifacts/eas/[A-Za-z0-9_-]+\.apk', url):
+              raise ValueError('Unexpected artifact URL')
+            data = urllib.request.urlopen(url, timeout=90).read()
+            if hashlib.sha256(data).hexdigest() != sha:
+              raise ValueError('Artifact checksum mismatch')
+            Path(os.environ['RUNNER_TEMP'], name + '.apk').write_bytes(data)
+          PY
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install, launch, upgrade and verify manual history
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: python3 scripts/android_smoke.py "$RUNNER_TEMP/baseline.apk" "$RUNNER_TEMP/candidate.apk"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-12-install-evidence
+          path: outputs/native-smoke/

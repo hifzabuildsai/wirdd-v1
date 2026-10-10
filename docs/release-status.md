@@ -39,7 +39,7 @@ Expo Doctor: 17/18 checks; React Native Directory marks Notifee unmaintained. Ke
 1. Exact S10 installer result, clean install/launch and safe upgrade on the replacement signed APK.
 2. Android 13+ physical voice testing, Arabic model availability and independent airplane-mode accuracy measurement; or benchmark a different offline engine if S10 voice is required.
 3. Background/lock auto-pause, calls, mic revoke/regrant and long sessions on physical phones.
-4. Small-screen/font scaling/TalkBack, screenshots and branded asset review.
+4. Small-screen/font scaling/TalkBack and store screenshots. `assets/images/icon.png` is confirmed Expo starter artwork and needs replacement; review adaptive/splash assets too.
 5. Play Console ownership/signing access, hosted privacy policy/support, store declarations, applicable testing track and production access.
 
 No merge, Play submission or public release is accepted by automated checks alone.

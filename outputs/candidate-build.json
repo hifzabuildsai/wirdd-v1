@@ -1,0 +1,16 @@
+{
+  "build_id": "b0541ddb-f2e9-4c63-b5ea-1659c97f38d8",
+  "status": "FINISHED",
+  "source_commit": "90e805041e4278c5be8843ee583bb69c1d1462e8",
+  "version_code": "4",
+  "package": "app.wirdd.android",
+  "apk_url": "https://expo.dev/artifacts/eas/1PfuAyfsCWuasFDrBAkCktiBtokRI4aU6K1vEuzqK8M.apk",
+  "build_page": "https://expo.dev/accounts/hifza-zafar/projects/wirdd/builds/b0541ddb-f2e9-4c63-b5ea-1659c97f38d8",
+  "physical_install": "pending",
+  "physical_voice_accuracy": "pending",
+  "confirmed_device": "Samsung S10 / Android 12 / manual mode only",
+  "apk_sha256": "b882903e1696428bcb2698ce34354f0a1035863aa5a861e4310d0d84bcfa415e",
+  "signing_certificate_matches_baseline": true,
+  "automated_tests_passed": 25,
+  "expo_doctor": "17/18; Notifee maintenance warning"
+}
