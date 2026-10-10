@@ -30,7 +30,13 @@ Android 12 compatibility is not the apparent install blocker. The failed downloa
 
 ## Validation
 
-Record final verification and replacement build metadata in `outputs/candidate-build.json` after the build finishes. Automated tests exercise lifecycle, phrases, dates and real SQLite SQL including rollback/reopening. Native Android prebuild validates generated configuration; Android export checks Hermes bundle generation. Physical Android behavior is unaccepted until the test sheet is filled.
+Final APK: EAS build `b0541ddb-f2e9-4c63-b5ea-1659c97f38d8`, source `90e805041e4278c5be8843ee583bb69c1d1462e8`, versionCode 4. Native build finished. ZIP integrity passed, minSdk 24 and ARM64 support are present, backup is disabled, unused permissions are absent, and the signing certificate matches the baseline. Metadata and hashes are in `outputs/candidate-build.json` and `outputs/candidate-apk-inspection.json`.
+
+25 automated tests passed, including production SQL against file-backed SQLite, rollback/reopening, old-schema migration and timezone corrections. Typecheck, lint, Android prebuild, Hermes export and source CI passed.
+
+[Android 12 emulator run](https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38086200345) passed baseline installation, candidate upgrade preserving a three-count session, restart preservation, and candidate clean installation/manual counting with networking disabled. Installer logs, UI XML, screenshots and logcat are attached to that run and downloaded under `outputs/native-smoke/`. See `outputs/native-smoke-result.json`. This proves emulator installation/manual durability, not physical S10 installation or microphone accuracy. Physical behavior remains unaccepted until the phone sheet is filled.
+
+EAS preview artifacts expire: keep the local APK copies for reproducibility and refresh the workflow's baseline pin when accepting a new beta. The current baseline EAS artifact expires 14 October 2026 UTC.
 
 Expo Doctor: 17/18 checks; React Native Directory marks Notifee unmaintained. Keep this visible. Retain existing notification integration for the beta rather than change engines and notification stack together. Before production, review replacement/removal options and test native compatibility.
 
