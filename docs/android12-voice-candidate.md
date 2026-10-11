@@ -27,6 +27,15 @@ values, endianness and overload handling. Physical recognition must be retested.
 The v5 emulator startup/pause/resume smoke passed but did not exercise speech;
 it cannot validate this boundary or accuracy.
 
+v6 (`a2e8a796-a185-4998-8821-517abd67e502`) built and upgraded on S10; emulator
+install/history/start/pause/resume passed. Owner still detected zero for three
+spaced recitations after ten seconds of silence. Dashboard retained 13. v6 is
+not accepted. Candidate v7 adds an optional Voice check panel with live audio
+duration/RMS, speech windows, completed recognitions, last recognized text and
+phrase matches. This feedback is in memory only, cleared on stop/restart, and
+never written to logs, SQLite or files. It is diagnostic evidence, not a voice
+accuracy fix.
+
 PCM is converted to float32 for internal buffering and back to PCM16 for native
 model calls. Half-second VAD windows collect disjoint
 utterances with a silence-only pre-roll. One second of silence ends an utterance.

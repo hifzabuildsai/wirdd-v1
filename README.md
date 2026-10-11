@@ -1,6 +1,6 @@
 # Wirdd · Android tester edition
 
-Wirdd counts Astaghfirullah in local sessions. APK installation and manual history reopening were verified on the owner's Samsung S10/Android 12. v5 microphone starts but owner testing found no voice increments; a PCM16 boundary correction is in the v6 build. Physical voice acceptance remains open. This is a beta; no account or checkout flow.
+Wirdd counts Astaghfirullah in local sessions. APK installation and manual history reopening were verified on the owner's Samsung S10/Android 12. v5 and v6 microphone startup works, but owner recitation tests still produce zero. The next candidate adds live Voice check feedback to diagnose capture, speech detection and recognition; physical voice acceptance remains open. This is a beta; no account or checkout flow.
 
 ## Setup
 
