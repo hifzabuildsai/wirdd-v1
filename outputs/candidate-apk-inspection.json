@@ -1,10 +1,10 @@
 {
-  "filename": "wirdd-offline-voice-v6.apk",
-  "bytes": 157502948,
-  "sha256": "c4248e077c73655c02361d67e1ad245d61bb3858d7233c1ada965d06d0ccbe66",
+  "filename": "wirdd-offline-voice-v7.apk",
+  "bytes": 157504720,
+  "sha256": "0ea81961a3bb8f341a1d64733f43bdcce1065ebccb4cac8a5969bcd7c7f6d84c",
   "zip_crc_valid": true,
   "manifest": {
-    "versionCode": 6,
+    "versionCode": 7,
     "versionName": "1.0.0",
     "compileSdkVersion": 36,
     "compileSdkVersionCodename": "16",

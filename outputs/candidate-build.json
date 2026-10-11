@@ -1,17 +1,17 @@
 {
-  "build_id": "a2e8a796-a185-4998-8821-517abd67e502",
+  "build_id": "16f012a3-c86d-460d-b137-bc622fd7aabd",
   "status": "FINISHED",
-  "source_commit": "32c61381d007cfd4479d311ff6cb94ffea2acde5",
-  "version_code": "6",
+  "source_commit": "067c6f3c982d37905213d72afbd093086d9fe0f3",
+  "version_code": "7",
   "package": "app.wirdd.android",
-  "apk_url": "https://expo.dev/artifacts/eas/u2ajYiUXedmUX2vrqGFJIJlUGrV4BUbLUVZdD57o9e0.apk",
-  "build_page": "https://expo.dev/accounts/hifza-zafar/projects/wirdd/builds/a2e8a796-a185-4998-8821-517abd67e502",
-  "physical_install": "passed: S10 ADB install -r Success and cold launch; voice accuracy awaiting owner retest",
-  "physical_voice_accuracy": "failed owner retest: three spaced recitations still zero after ten seconds; Voice check candidate required",
+  "apk_url": "https://expo.dev/artifacts/eas/kIdjsnVM38hB09X5PRhCpeGubgYv4W-EqijaL9-pP9Q.apk",
+  "build_page": "https://expo.dev/accounts/hifza-zafar/projects/wirdd/builds/16f012a3-c86d-460d-b137-bc622fd7aabd",
+  "physical_install": "v7 upgrade in progress",
+  "physical_voice_accuracy": "pending diagnostic readings; v5 and v6 owner tests detected zero",
   "confirmed_device": "Samsung S10 / Android 12",
-  "apk_sha256": "c4248e077c73655c02361d67e1ad245d61bb3858d7233c1ada965d06d0ccbe66",
+  "apk_sha256": "0ea81961a3bb8f341a1d64733f43bdcce1065ebccb4cac8a5969bcd7c7f6d84c",
   "signing_certificate_matches_baseline": true,
-  "automated_tests_passed": 39,
+  "automated_tests_passed": 40,
   "expo_doctor": "17/18; Notifee maintenance warning; whisper.rn and local module lack directory metadata",
-  "emulator_smoke": "passed https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38101401190"
+  "emulator_smoke": "v7 pending; v6 lifecycle passed but real voice failed"
 }
