@@ -52,6 +52,7 @@ export default function SessionScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [voiceCheck, setVoiceCheck] = useState(false);
   const manual = mode === 'manual';
   const startingRef = useRef(false);
   const bufferedRef = useRef(0);
@@ -86,7 +87,7 @@ export default function SessionScreen() {
     void stopVoiceRef.current?.().catch(() => {});
     void stopForegroundService().catch(() => {});
   }, [pauseSession]);
-  const { start, stop, pause, resume, listening } = useVoiceDetection(handleDetect, handleVoiceError);
+  const { start, stop, pause, resume, listening, diagnostics } = useVoiceDetection(handleDetect, handleVoiceError);
   stopVoiceRef.current = stop;
 
   useEffect(() => {
@@ -250,6 +251,17 @@ export default function SessionScreen() {
           )}
           {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
           {notice && <Text style={styles.stateLabel} accessibilityRole="alert">{notice}</Text>}
+          {!manual && <>
+            <Pressable onPress={() => setVoiceCheck(value => !value)} accessibilityRole="button" accessibilityLabel="Toggle voice check" accessibilityState={{ expanded: voiceCheck }}>
+              <Text style={styles.stateLabel}>{voiceCheck ? 'Hide voice check' : 'Voice check'}</Text>
+            </Pressable>
+            {voiceCheck && <View>
+              <Text style={styles.stateLabel}>Audio received: {diagnostics.audioSeconds.toFixed(1)}s · Sound level: {(diagnostics.level * 100).toFixed(2)}%</Text>
+              <Text style={styles.stateLabel}>Speech windows: {diagnostics.speechWindows} · Recognitions: {diagnostics.decodedUtterances}</Text>
+              <Text style={styles.stateLabel}>Last recognized: {diagnostics.recognized || 'None yet'} · Phrase matches: {diagnostics.matches}</Text>
+              <Text style={styles.stateLabel}>Live check only. Audio and recognized text are not saved.</Text>
+            </View>}
+          </>}
 
           <View style={styles.actionRow}>
             <Pressable style={styles.plusButton} onPress={handleManualIncrement} disabled={isPaused || busy} accessibilityRole="button" accessibilityLabel="Add one count">

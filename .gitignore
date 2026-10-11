@@ -73,4 +73,5 @@ outputs/voice-build-logs/
 outputs/s10-*.xml
 outputs/s10-*.png
 outputs/voice-v6-build-status.json
+outputs/voice-v7-build-status.json
 outputs/v6-export/

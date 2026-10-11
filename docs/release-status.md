@@ -30,6 +30,13 @@ S10 installation/manual durability is confirmed. No uninstall or history deletio
 
 ## Validation
 
+Owner v6 retest: three spaced recitations still produced zero after ten seconds
+of silence. PCM16 correction alone did not resolve physical recognition. v6 is
+not accepted for voice counting. Next candidate adds optional in-memory Voice
+check feedback (audio duration/level, speech windows, decoded utterances and last
+recognized text) to identify capture/VAD/ASR/matching failure. No diagnostic
+audio or transcript is persisted or logged.
+
 Owner confirmed v5 microphone listening but no increments after three spaced
 recitations and ten seconds of silence. v5 is not accepted for voice counting.
 Correction source `32c61381d007cfd4479d311ff6cb94ffea2acde5` converts internal

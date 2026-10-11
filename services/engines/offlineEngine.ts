@@ -15,6 +15,13 @@ export type OfflineCapture = {
 // 16 kHz PCM, half-second VAD windows. Disjoint utterances are counted once,
 // after a second of silence, rather than counting revisable partial transcripts.
 const WINDOW = 8000;
+export type VoiceDiagnostics = {
+  audioSeconds: number; level: number; speechWindows: number;
+  decodedUtterances: number; recognized: string; matches: number;
+};
+export const emptyDiagnostics = (): VoiceDiagnostics => ({
+  audioSeconds: 0, level: 0, speechWindows: 0, decodedUtterances: 0, recognized: '', matches: 0,
+});
 let nextToken = Math.floor(Date.now() % 1_000_000_000);
 export class OfflineEngine implements VoiceDetectionEngine {
   private load: () => Promise<OfflineModels>;
@@ -43,10 +50,14 @@ export class OfflineEngine implements VoiceDetectionEngine {
   private detect: ((count: number) => void) | null = null;
   private error: ((message: string) => void) | null = null;
   private audioState: ((listening: boolean) => void) | null = null;
+  private diagnostics = emptyDiagnostics();
+  private lastDiagnostic = 0;
+  private report: ((state: VoiceDiagnostics) => void) | undefined;
 
-  constructor(load: () => Promise<OfflineModels>, capture: OfflineCapture) {
+  constructor(load: () => Promise<OfflineModels>, capture: OfflineCapture, report?: (state: VoiceDiagnostics) => void) {
     this.load = load;
     this.capture = capture;
+    this.report = report;
   }
 
   initialize(): Promise<void> {
@@ -67,6 +78,8 @@ export class OfflineEngine implements VoiceDetectionEngine {
     if (this.running) return;
     if (!this.models || this.destroyed) throw new Error('Offline voice model is unavailable. Retry or count manually.');
     this.running = true;
+    this.diagnostics = emptyDiagnostics();
+    this.lastDiagnostic = 0;
     this.token = ++nextToken;
     const token = this.token;
     this.detect = detect;
@@ -95,6 +108,11 @@ export class OfflineEngine implements VoiceDetectionEngine {
 
   private accept(samples: Float32Array) {
     this.lastAudio = Date.now();
+    let power = 0;
+    for (const sample of samples) power += sample * sample;
+    this.diagnostics.audioSeconds += samples.length / 16000;
+    this.diagnostics.level = samples.length ? Math.sqrt(power / samples.length) : 0;
+    this.publishDiagnostics();
     if (this.startup) { this.audioState?.(true); this.startup.resolve(); this.startup = null; }
     const combined = new Float32Array(this.pending.length + samples.length);
     combined.set(this.pending); combined.set(samples, this.pending.length);
@@ -116,6 +134,8 @@ export class OfflineEngine implements VoiceDetectionEngine {
         const speech = await this.models!.hasSpeech(window);
         if (!this.running || token !== this.token) return;
         if (speech) {
+          this.diagnostics.speechWindows++;
+          this.publishDiagnostics();
           if (!this.utterance.length && this.preRoll) this.utterance.push(this.preRoll);
           this.utterance.push(window);
           this.silenceWindows = 0;
@@ -160,6 +180,10 @@ export class OfflineEngine implements VoiceDetectionEngine {
         if (!this.running || token !== this.token) return;
         if (!result.isAborted) {
           const count = countPhrases(result.result);
+          this.diagnostics.decodedUtterances++;
+          this.diagnostics.recognized = result.result.slice(0, 240);
+          this.diagnostics.matches = count;
+          this.publishDiagnostics(true);
           if (count) this.detect?.(count);
         }
       }
@@ -177,6 +201,15 @@ export class OfflineEngine implements VoiceDetectionEngine {
     const callback = this.error;
     void this.stop().catch(() => {});
     callback?.(message);
+  }
+
+  private publishDiagnostics(force = false) {
+    if (!this.running || !this.report) return;
+    const now = Date.now();
+    if (!force && now - this.lastDiagnostic < 500) return;
+    this.lastDiagnostic = now;
+    // In-memory feedback only: never store or log audio/transcripts.
+    this.report({ ...this.diagnostics });
   }
 
   stop(): Promise<void> {

@@ -4,6 +4,7 @@ import { Buffer } from 'safe-buffer';
 import { OfflineEngine } from './offlineEngine';
 import { toPcm16 } from './pcm16';
 import type { OfflineCapture, OfflineModels } from './offlineEngine';
+import type { VoiceDiagnostics } from './offlineEngine';
 
 type AudioModule = {
   start(token: number): Promise<void>;
@@ -54,5 +55,5 @@ async function loadModels(): Promise<OfflineModels> {
   } catch (error) { await whisper.release(); throw error; }
 }
 export class WhisperEngine extends OfflineEngine {
-  constructor() { super(loadModels, capture); }
+  constructor(report?: (state: VoiceDiagnostics) => void) { super(loadModels, capture, report); }
 }

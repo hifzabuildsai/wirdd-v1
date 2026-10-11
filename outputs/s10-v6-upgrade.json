@@ -2,9 +2,9 @@
   "pcm_boundary": "explicit little-endian PCM16 for VAD and ASR",
   "build_id": "a2e8a796-a185-4998-8821-517abd67e502",
   "cold_launch": "passed",
-  "voice_accuracy": "pending owner retest",
+  "voice_accuracy": "failed owner retest: three recitations detected zero",
   "version_code": 6,
-  "history_v6": "pending Dashboard verification; v5 upgrade retained 13",
+  "history_v6": "verified Dashboard 13 after upgrade and zero-count session",
   "install": "ADB install -r Success",
   "device": "Samsung S10 / Android 12"
 }

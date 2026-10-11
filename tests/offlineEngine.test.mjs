@@ -5,7 +5,7 @@ import { OfflineEngine } from '../services/engines/offlineEngine.ts';
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function fixture(options = {}) {
   let audio, error, token;
-  const detected = [], states = [], errors = [], transcripts = [];
+  const detected = [], states = [], errors = [], transcripts = [], diagnostics = [];
   let stopped = 0, released = 0;
   const models = {
     hasSpeech: options.hasSpeech ?? (async samples => samples[0] !== 0),
@@ -20,9 +20,9 @@ function fixture(options = {}) {
     start: async next => { token = next; options.start?.(); },
     stop: async () => { stopped++; },
   };
-  const engine = new OfflineEngine(options.load ?? (async () => models), capture);
+  const engine = new OfflineEngine(options.load ?? (async () => models), capture, state => diagnostics.push(state));
   return {
-    engine, detected, states, errors, transcripts,
+    engine, detected, states, errors, transcripts, diagnostics,
     get stopped() { return stopped; }, get released() { return released; },
     async start() {
       await engine.initialize();
@@ -60,6 +60,22 @@ test('counts repeated phrases once per disjoint complete utterance', async () =>
 test('unrelated speech does not add a count', async () => {
   const f = fixture({ transcribe: () => ({ stop: async () => {}, promise: Promise.resolve({ result: 'كيف حالك اليوم', isAborted: false }) }) });
   await f.start(); await f.utterance(); assert.deepEqual(f.detected, []);
+  await f.engine.destroy();
+});
+
+test('voice check distinguishes received audio, speech and unmatched recognition; stale audio cannot update it', async () => {
+  const f = fixture({ transcribe: () => ({ stop: async () => {}, promise: Promise.resolve({ result: 'كيف حالك', isAborted: false }) }) });
+  await f.start(); await f.utterance();
+  const state = f.diagnostics.at(-1);
+  assert.equal(state.audioSeconds, 2);
+  assert.equal(state.speechWindows, 1);
+  assert.equal(state.decodedUtterances, 1);
+  assert.equal(state.recognized, 'كيف حالك');
+  assert.equal(state.matches, 0);
+  await f.engine.stop();
+  const reports = f.diagnostics.length;
+  f.emit(1); await tick(); assert.equal(f.diagnostics.length, reports);
+  await f.start(); assert.equal(f.diagnostics.at(-1).recognized, '');
   await f.engine.destroy();
 });
 

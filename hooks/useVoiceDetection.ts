@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { WhisperEngine } from '../services/engines/whisperEngine';
 import type { VoiceDetectionEngine } from '../services/engines/voiceDetectionEngine';
+import { emptyDiagnostics } from '../services/engines/offlineEngine';
 
 async function requestMicPermission(): Promise<void> {
   if (Platform.OS !== 'android') throw new Error('Voice sessions require Android.');
@@ -20,7 +21,9 @@ async function requestMicPermission(): Promise<void> {
 }
 
 export function useVoiceDetection(onDetect: (count: number) => void, onError: (message: string) => void) {
-  const engineRef = useRef<VoiceDetectionEngine>(new WhisperEngine());
+  const [diagnostics, setDiagnostics] = useState(emptyDiagnostics);
+  const engineRef = useRef<VoiceDetectionEngine | null>(null);
+  if (!engineRef.current) engineRef.current = new WhisperEngine(setDiagnostics);
   const runningRef = useRef(false);
   const generationRef = useRef(0);
   const pendingRef = useRef<Promise<void> | null>(null);
@@ -38,12 +41,12 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
       if (generation !== generationRef.current) throw new Error('Microphone start cancelled.');
     };
     const operation = (async () => {
-      await engineRef.current.initialize();
+      await engineRef.current!.initialize();
       ensureCurrent();
       await requestMicPermission();
       ensureCurrent();
       let failedDuringStartup = false;
-      await engineRef.current.start(
+      await engineRef.current!.start(
         (count) => detectRef.current(count),
         (message) => { failedDuringStartup = true; runningRef.current = false; errorRef.current(message); },
         (value) => { if (generation === generationRef.current) setListening(value); },
@@ -61,7 +64,8 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
     generationRef.current++;
     runningRef.current = false;
     setListening(false);
-    await engineRef.current.stop();
+    await engineRef.current!.stop();
+    setDiagnostics(emptyDiagnostics());
   }, []);
 
   const pause = stop;
@@ -70,8 +74,8 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
   useEffect(() => () => {
     generationRef.current++;
     runningRef.current = false;
-    void engineRef.current.destroy();
+    void engineRef.current!.destroy();
   }, []);
 
-  return { start, stop, pause, resume, listening };
+  return { start, stop, pause, resume, listening, diagnostics };
 }
