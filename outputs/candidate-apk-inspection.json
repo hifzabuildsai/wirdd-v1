@@ -1,10 +1,10 @@
 {
-  "filename": "wirdd-candidate.apk",
-  "bytes": 121984011,
-  "sha256": "b882903e1696428bcb2698ce34354f0a1035863aa5a861e4310d0d84bcfa415e",
+  "filename": "wirdd-offline-voice.apk",
+  "bytes": 157502504,
+  "sha256": "3fd1d9e6223dcf869cd6ca8e11ed30a7a090fd8e7b03519361f5bdc37829233b",
   "zip_crc_valid": true,
   "manifest": {
-    "versionCode": 4,
+    "versionCode": 5,
     "versionName": "1.0.0",
     "compileSdkVersion": 36,
     "compileSdkVersionCodename": "16",
@@ -63,8 +63,6 @@
   ],
   "abis": [
     "arm64-v8a",
-    "armeabi-v7a",
-    "x86",
     "x86_64"
   ],
   "bundled_js": true,

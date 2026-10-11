@@ -12,6 +12,11 @@ start resolves after actual PCM, stop stops and joins the recording worker, and
 Android microphone silencing by another app/call reports an interruption.
 The tester APK includes ARM64 and x86_64; 32-bit devices are outside this candidate.
 
+Build v5 `86c74898-b960-4536-b549-b864814351f0` finished and was upgraded on the
+S10 without uninstalling. App cold launch and Dashboard still show total 13 and
+the two previous sessions. Microphone startup/accuracy remain pending. Both model
+file hashes were checked in the packaged APK, alongside all license notices.
+
 PCM is converted to float32 in memory. Half-second VAD windows collect disjoint
 utterances with a silence-only pre-roll. One second of silence ends an utterance.
 Only complete transcription results increment counts, so revisable partial

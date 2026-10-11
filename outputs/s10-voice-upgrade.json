@@ -1,0 +1,16 @@
+{
+  "device": "Samsung S10 (SM-G973F)",
+  "android": "12",
+  "version_code": 5,
+  "build_id": "86c74898-b960-4536-b549-b864814351f0",
+  "source_commit": "dc5d60ca32f1448f5e4a0a75c645bb053513c026",
+  "install": "ADB install -r: Success",
+  "app_launch": "passed",
+  "previous_history_preserved": 13,
+  "prior_sessions": [
+    5,
+    8
+  ],
+  "voice_accuracy": "pending",
+  "mic_startup": "pending"
+}

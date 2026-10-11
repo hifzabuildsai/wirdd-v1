@@ -1,4 +1,4 @@
-"""ADB install/manual-history smoke test on a fresh CI emulator; no voice proof."""
+"""Disposable emulator install/history and offline-model startup smoke; no accuracy proof."""
 import json
 import re
 import subprocess
@@ -42,7 +42,12 @@ def label(node, value):
 
 
 def tap(value):
-    node = wait_for(lambda node: label(node, value))
+    def target(node):
+        matches = label(node, value) or node.get('content-desc', '').endswith(', ' + value)
+        bounds = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
+        # Navigation nodes can exist before their cold-start layout is complete.
+        return matches and len(bounds) == 4 and bounds[2] > bounds[0] and bounds[3] - bounds[1] >= 8
+    node = wait_for(target)
     x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.get('bounds', '')))
     adb('shell', 'input', 'tap', str((x1 + x2) // 2), str((y1 + y2) // 2))
 
@@ -65,6 +70,27 @@ def manual_session():
     for value in range(1, 4):
         tap('Add one count')
         counter(value)
+    tap('End and save session')
+    tap('Skip')
+    wait_for(lambda node: label(node, 'TODAY'))
+    counter(3)
+
+
+def offline_voice_startup():
+    # Runtime/JNI/model/capture smoke on the disposable emulator, not accuracy.
+    adb('shell', 'pm', 'grant', PACKAGE, 'android.permission.RECORD_AUDIO')
+    tap('Session')
+    tap('Start voice session')
+    wait_for(lambda node: label(node, 'Microphone listening'), seconds=90)
+    time.sleep(8)
+    wait_for(lambda node: label(node, 'Microphone listening'))
+    counter(0)
+    screenshot('offline-microphone-started.png')
+    tap('Pause session')
+    wait_for(lambda node: label(node, 'Paused · microphone off'))
+    tap('Resume session')
+    wait_for(lambda node: label(node, 'Microphone listening'))
+    screenshot('offline-microphone-resumed.png')
     tap('End and save session')
     tap('Skip')
     wait_for(lambda node: label(node, 'TODAY'))
@@ -105,6 +131,7 @@ def run(baseline, candidate):
     tap('Skip')
     manual_session()
     screenshot('candidate-clean-install.png')
+    offline_voice_startup()
     (OUT / 'result.json').write_text(json.dumps({
         'android_api': 31,
         'baseline_install': 'passed',
@@ -112,6 +139,7 @@ def run(baseline, candidate):
         'candidate_upgrade_preserved_count': 3,
         'restart_preserved_count': 3,
         'voice_accuracy': 'not tested',
+        'offline_model_microphone_start_pause_resume': 'passed',
         'physical_device': False,
     }, indent=2) + '\n')
 

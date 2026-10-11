@@ -30,7 +30,9 @@ S10 installation/manual durability is confirmed. No uninstall or history deletio
 
 ## Validation
 
-Final APK: EAS build `b0541ddb-f2e9-4c63-b5ea-1659c97f38d8`, source `90e805041e4278c5be8843ee583bb69c1d1462e8`, versionCode 4. Native build finished. ZIP integrity passed, minSdk 24 and ARM64 support are present, backup is disabled, unused permissions are absent, and the signing certificate matches the baseline. Metadata and hashes are in `outputs/candidate-build.json` and `outputs/candidate-apk-inspection.json`.
+New offline voice candidate: source `dc5d60ca32f1448f5e4a0a75c645bb053513c026`, EAS build `86c74898-b960-4536-b549-b864814351f0`, versionCode 5. Native build finished and ADB upgrade on S10 passed; cold launch and Dashboard verified the owner's 13 counts and two prior sessions remained. Both bundled models match upstream pinned hashes inside the APK; all four MIT notices and ARM64/x86_64 Whisper libraries are present. Signing certificate matches v4/baseline. See `outputs/candidate-build.json`, `outputs/candidate-apk-inspection.json`, `outputs/offline-voice-bundle-inspection.json`, and `outputs/s10-voice-upgrade.json`. 37 tests, typecheck, lint, prebuild and Android Hermes/model export passed. [Source CI](https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38095547530) passed. Microphone startup/accuracy and emulator startup smoke remain pending. Expo Doctor is 17/18: Notifee is flagged unmaintained and no directory metadata exists for whisper.rn/local WirddAudio.
+
+Earlier manual APK: EAS build `b0541ddb-f2e9-4c63-b5ea-1659c97f38d8`, source `90e805041e4278c5be8843ee583bb69c1d1462e8`, versionCode 4. Native build finished. ZIP integrity passed, minSdk 24 and ARM64 support are present, backup is disabled, unused permissions are absent, and the signing certificate matches the baseline. Metadata/hashes are retained in `outputs/manual-v4-build.json` and `outputs/manual-v4-apk-inspection.json`.
 
 25 automated tests passed, including production SQL against file-backed SQLite, rollback/reopening, old-schema migration and timezone corrections. Typecheck, lint, Android prebuild, Hermes export and source CI passed.
 
@@ -42,8 +44,8 @@ Expo Doctor: 17/18 checks; React Native Directory marks Notifee unmaintained. Ke
 
 ## Remaining release gates
 
-1. Exact S10 installer result, clean install/launch and safe upgrade on the replacement signed APK.
-2. Android 13+ physical voice testing, Arabic model availability and independent airplane-mode accuracy measurement; or benchmark a different offline engine if S10 voice is required.
+1. V5 emulator startup smoke and S10 microphone acceptance. Native build and safe S10 upgrade preserving 13 have passed; v4 manual durability was accepted by the owner.
+2. Android 12 S10 Whisper/VAD microphone startup, independent airplane-mode accuracy, false positives, latency and battery measurement.
 3. Background/lock auto-pause, calls, mic revoke/regrant and long sessions on physical phones.
 4. Small-screen/font scaling/TalkBack and store screenshots. `assets/images/icon.png` is confirmed Expo starter artwork and needs replacement; review adaptive/splash assets too.
 5. Play Console ownership/signing access, hosted privacy policy/support, store declarations, applicable testing track and production access.

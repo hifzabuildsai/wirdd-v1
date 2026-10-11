@@ -1,0 +1,29 @@
+{
+  "models": [
+    {
+      "model": "ggml-tiny.bin",
+      "matches": [
+        "res/-T.bin"
+      ]
+    },
+    {
+      "model": "ggml-silero-v6.2.0.bin",
+      "matches": [
+        "res/1d.bin"
+      ]
+    }
+  ],
+  "license_notices": [
+    "assets/silero-vad.txt",
+    "assets/whisper-cpp.txt",
+    "assets/whisper-rn.txt",
+    "assets/whisper.txt"
+  ],
+  "whisper_native_libraries": [
+    "lib/arm64-v8a/librnwhisper.so",
+    "lib/arm64-v8a/librnwhisper_v8.so",
+    "lib/arm64-v8a/librnwhisper_v8fp16_va_2.so",
+    "lib/x86_64/librnwhisper.so",
+    "lib/x86_64/librnwhisper_x86_64.so"
+  ]
+}

@@ -68,3 +68,7 @@ assets/models/*.partial
 
 outputs/voice-export/
 outputs/voice-build-request.json
+outputs/voice-build-status.json
+outputs/voice-build-logs/
+outputs/s10-*.xml
+outputs/s10-*.png
