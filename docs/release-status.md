@@ -36,7 +36,11 @@ Correction source `32c61381d007cfd4479d311ff6cb94ffea2acde5` converts internal
 Float32 samples to little-endian PCM16 required by whisper.rn 0.7.4's native
 decoder (its VAD TypeScript comment is misleading). 39 tests, typecheck, lint and
 [correction CI](https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38099622591)
-pass. Signed v6 build `a2e8a796-a185-4998-8821-517abd67e502` is in progress.
+pass. Signed v6 build `a2e8a796-a185-4998-8821-517abd67e502` finished. APK ZIP CRC,
+SDK/ABI packaging and signing certificate match passed; corrected Hermes export
+passed. See `outputs/candidate-build.json` for the pinned download/hash. Physical
+v6 upgrade is pending USB detection or owner direct install; v6 emulator smoke
+is running. Model accuracy remains unaccepted.
 The [v5 emulator microphone start/pause/resume smoke](https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38099174372)
 passed but does not exercise real speech. The older evidence below is historical;
 physical voice recognition still requires a corrected APK and independent tallies.
