@@ -51,6 +51,48 @@ test('silence never reaches Whisper decoding', async () => {
   await f.engine.destroy();
 });
 
+test('one-phrase check transcribes exactly six seconds without VAD or count callbacks, then stops capture', async () => {
+  let vadCalls = 0;
+  const f = fixture({ hasSpeech: async samples => { vadCalls++; return samples[0] !== 0; } });
+  await f.engine.initialize();
+  const check = f.engine.check(msg => f.errors.push(msg), state => f.states.push(state));
+  await tick();
+  f.emit(0.25, 100000);
+  await check;
+  assert.equal(f.transcripts.length, 1);
+  assert.equal(f.transcripts[0].length, 96000);
+  assert.ok(f.transcripts[0].every(sample => sample === 0.25));
+  assert.deepEqual(f.detected, []);
+  assert.deepEqual(f.errors, []);
+  assert.equal(vadCalls, 0);
+  assert.equal(f.states.at(-1), false);
+  assert.equal(f.diagnostics.at(-1).checkState, 'complete');
+  assert.equal(f.diagnostics.at(-1).matches, 2);
+  assert.equal(f.diagnostics.at(-1).utteranceSeconds, 6);
+  assert.equal(f.diagnostics.at(-1).peakLevel, 0.25);
+  const reports = f.diagnostics.length;
+  f.emit(1); await tick(); assert.equal(f.diagnostics.length, reports);
+  await f.start(); await f.utterance(); assert.deepEqual(f.detected, [2]);
+  await f.engine.destroy();
+});
+
+test('cancelled one-phrase check discards partial audio and ignores late decode results', async () => {
+  let resolve;
+  const f = fixture({ transcribe: () => ({
+    promise: new Promise(done => { resolve = done; }),
+    stop: async () => { resolve({ result: 'أستغفر الله', isAborted: false }); },
+  }) });
+  await f.engine.initialize();
+  const check = f.engine.check(() => {}, () => {});
+  const rejected = assert.rejects(check, /cancelled/);
+  await tick(); f.emit(1, 96000); await tick();
+  await f.engine.stop(); await rejected;
+  assert.deepEqual(f.detected, []);
+  assert.equal(f.diagnostics.at(-1).checkState, 'decoding');
+  assert.equal(f.diagnostics.at(-1).recognized, '');
+  await f.engine.destroy();
+});
+
 test('counts repeated phrases once per disjoint complete utterance', async () => {
   const f = fixture(); await f.start(); await f.utterance(); await f.utterance();
   assert.deepEqual(f.detected, [2, 2]); assert.equal(f.transcripts.length, 2);

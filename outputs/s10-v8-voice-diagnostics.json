@@ -1,0 +1,18 @@
+{
+  "device": "Samsung S10 / Android 12",
+  "version_code": 8,
+  "build_id": "9a788b9c-5db3-48ef-a95f-86e5f125b78f",
+  "source_commit": "3a97b486c9a6385c77c1afc211e346bfdced96e8",
+  "owner_requested_test": "three Astaghfirullah recitations, two-second gaps, twenty seconds silence",
+  "live_snapshot": {
+    "audio_received_seconds": 105.3,
+    "rms_percent_at_snapshot": 1.11,
+    "speech_windows": 28,
+    "completed_recognitions": 11,
+    "counter": 0,
+    "last_phrase_matches": 0
+  },
+  "voice_accuracy": "failed",
+  "interpretation": "Base Q5_1 and beam search still produced incorrect recognized words. Capture, VAD and decoding execute, but the failure is not resolved. Next controlled check bypasses VAD and transcribes one bounded whole sample without adding counts.",
+  "app_audio_and_transcript_storage": "none; diagnostic screenshots are local and Git-ignored"
+}

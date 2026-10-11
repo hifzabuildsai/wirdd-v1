@@ -7,7 +7,7 @@
   "apk_url": "https://expo.dev/artifacts/eas/iopuxmW4wLZujiHAE7XAa9Mc2yP44xbbaOrlyBfkkio.apk",
   "build_page": "https://expo.dev/accounts/hifza-zafar/projects/wirdd/builds/9a788b9c-5db3-48ef-a95f-86e5f125b78f",
   "physical_install": "passed: S10 ADB install -r Success and cold launch",
-  "physical_voice_accuracy": "pending base Q5_1 retest; v7 diagnostics showed incorrect recognized words and zero matches",
+  "physical_voice_accuracy": "failed: v8 S10 three-phrase test remained zero; 28 speech windows and 11 recognitions, incorrect last words and zero matches",
   "confirmed_device": "Samsung S10 / Android 12",
   "apk_sha256": "560b820834c8935b948d67a035dd484bdc98aaaa71f645f9189ce7150394d926",
   "signing_certificate_matches_baseline": true,

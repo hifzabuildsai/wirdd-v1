@@ -36,7 +36,7 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
   detectRef.current = onDetect;
   errorRef.current = onError;
 
-  const start = useCallback(() => {
+  const begin = useCallback((check: boolean) => {
     if (pendingRef.current) return pendingRef.current;
     if (runningRef.current) return Promise.resolve();
     const generation = ++generationRef.current;
@@ -49,19 +49,24 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
       await engineRef.current!.initialize();
       ensureCurrent();
       let failedDuringStartup = false;
-      await engineRef.current!.start(
-        (count) => detectRef.current(count),
-        (message) => { failedDuringStartup = true; runningRef.current = false; errorRef.current(message); },
-        (value) => { if (generation === generationRef.current) setListening(value); },
-      );
+      const fail = (message: string) => { failedDuringStartup = true; runningRef.current = false; errorRef.current(message); };
+      const audioState = (value: boolean) => { if (generation === generationRef.current) setListening(value); };
+      if (check) {
+        if (!engineRef.current!.check) throw new Error('Voice check is unavailable.');
+        await engineRef.current!.check(fail, audioState);
+      } else {
+        await engineRef.current!.start(count => detectRef.current(count), fail, audioState);
+      }
       ensureCurrent();
       if (failedDuringStartup) throw new Error('Microphone stopped during startup. Retry the session.');
-      runningRef.current = true;
+      runningRef.current = !check;
     })();
     pendingRef.current = operation;
     void operation.finally(() => { pendingRef.current = null; }).catch(() => {});
     return operation;
   }, []);
+  const start = useCallback(() => begin(false), [begin]);
+  const check = useCallback(() => begin(true), [begin]);
 
   const stop = useCallback(async () => {
     generationRef.current++;
@@ -80,5 +85,5 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
     void engineRef.current!.destroy();
   }, []);
 
-  return { start, stop, pause, resume, listening, diagnostics, isRequestingPermission };
+  return { start, stop, pause, resume, check, listening, diagnostics, isRequestingPermission };
 }

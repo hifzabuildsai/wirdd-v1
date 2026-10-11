@@ -1,5 +1,19 @@
 # Android 12 offline voice candidate
 
+Current result: v8 (base Q5_1, beam size 3) installed on S10 but the owner's
+three-phrase test still counted zero. Live feedback showed 105.3 seconds received,
+28 speech windows and 11 recognitions; the last recognized words were incorrect.
+See `outputs/s10-v8-voice-diagnostics.json`. Voice accuracy remains failed.
+
+The next candidate adds a six-second, one-recitation check in idle state or in
+Voice check while paused. It bypasses VAD and transcribes the entire bounded
+sample with the same microphone, PCM conversion and model. Capture stops before
+decoding. It never creates a session or adds counts. Audio stays in memory and
+the text is shown only in the live panel. Cancellation/background discards the
+sample and ignores late results. This distinguishes boundary failures from
+capture/recognition failures; it is not an accuracy fix. Normal sessions also
+show the last decoded sample duration and maximum received RMS level.
+
 Owner's Samsung S10/Android 12 now has confirmed APK v4 installation, manual
 session totals 5 + 8 = 13 and reopening preserves 13. Installer failure was
 `INSTALL_FAILED_INSUFFICIENT_STORAGE`: 616 MB free before cleanup, 4.2 GB after.

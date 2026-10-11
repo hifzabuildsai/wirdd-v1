@@ -18,9 +18,12 @@ const WINDOW = 8000;
 export type VoiceDiagnostics = {
   audioSeconds: number; level: number; speechWindows: number;
   decodedUtterances: number; recognized: string; matches: number;
+  utteranceSeconds: number; peakLevel: number;
+  checkState: 'idle' | 'recording' | 'decoding' | 'complete';
 };
 export const emptyDiagnostics = (): VoiceDiagnostics => ({
   audioSeconds: 0, level: 0, speechWindows: 0, decodedUtterances: 0, recognized: '', matches: 0,
+  utteranceSeconds: 0, peakLevel: 0, checkState: 'idle',
 });
 let nextToken = Math.floor(Date.now() % 1_000_000_000);
 export class OfflineEngine implements VoiceDetectionEngine {
@@ -53,6 +56,11 @@ export class OfflineEngine implements VoiceDetectionEngine {
   private diagnostics = emptyDiagnostics();
   private lastDiagnostic = 0;
   private report: ((state: VoiceDiagnostics) => void) | undefined;
+  private checking = false;
+  private checkSamples: Float32Array[] = [];
+  private checkReceived = 0;
+  private checkWork: Promise<void> | null = null;
+  private checkCompletion: { resolve(): void; reject(error: Error): void } | null = null;
 
   constructor(load: () => Promise<OfflineModels>, capture: OfflineCapture, report?: (state: VoiceDiagnostics) => void) {
     this.load = load;
@@ -79,6 +87,7 @@ export class OfflineEngine implements VoiceDetectionEngine {
     if (!this.models || this.destroyed) throw new Error('Offline voice model is unavailable. Retry or count manually.');
     this.running = true;
     this.diagnostics = emptyDiagnostics();
+    if (this.checking) this.diagnostics.checkState = 'recording';
     this.lastDiagnostic = 0;
     this.token = ++nextToken;
     const token = this.token;
@@ -112,8 +121,19 @@ export class OfflineEngine implements VoiceDetectionEngine {
     for (const sample of samples) power += sample * sample;
     this.diagnostics.audioSeconds += samples.length / 16000;
     this.diagnostics.level = samples.length ? Math.sqrt(power / samples.length) : 0;
+    this.diagnostics.peakLevel = Math.max(this.diagnostics.peakLevel, this.diagnostics.level);
     this.publishDiagnostics();
     if (this.startup) { this.audioState?.(true); this.startup.resolve(); this.startup = null; }
+    if (this.checking) {
+      if (this.checkWork) return;
+      // A bounded, uncut six-second sample isolates decoding from VAD boundaries.
+      // Diagnostic only: no detection callback, session, file or upload.
+      const part = samples.slice(0, Math.max(0, 96000 - this.checkReceived));
+      this.checkSamples.push(part);
+      this.checkReceived += part.length;
+      if (this.checkReceived === 96000) this.decodeCheck();
+      return;
+    }
     const combined = new Float32Array(this.pending.length + samples.length);
     combined.set(this.pending); combined.set(samples, this.pending.length);
     let offset = 0;
@@ -123,6 +143,52 @@ export class OfflineEngine implements VoiceDetectionEngine {
     this.pending = combined.slice(offset);
     if (this.vadQueue.length > 8) { this.fail('Voice processing is falling behind. Pause and retry in a quiet place.'); return; }
     this.runVad();
+  }
+
+  async check(onError: (message: string) => void, onAudioState: (listening: boolean) => void): Promise<void> {
+    await this.stop();
+    this.checking = true;
+    const complete = new Promise<void>((resolve, reject) => { this.checkCompletion = { resolve, reject }; });
+    void complete.catch(() => {});
+    try {
+      await this.start(() => {}, onError, onAudioState);
+      await complete;
+    } finally {
+      await this.stop();
+      this.checking = false;
+    }
+  }
+
+  private decodeCheck() {
+    const token = this.token;
+    const samples = new Float32Array(96000);
+    let offset = 0;
+    for (const part of this.checkSamples) { samples.set(part, offset); offset += part.length; }
+    this.checkSamples = [];
+    this.diagnostics.checkState = 'decoding';
+    this.diagnostics.utteranceSeconds = samples.length / 16000;
+    this.publishDiagnostics(true);
+    if (this.watchdog) clearInterval(this.watchdog);
+    this.watchdog = null;
+    this.unsubscribe?.(); this.unsubscribe = null;
+    this.checkWork = (async () => {
+      await this.capture.stop();
+      this.audioState?.(false);
+      if (!this.running || token !== this.token) return;
+      this.job = this.models!.transcribe(samples);
+      this.decodeDeadline = setTimeout(() => this.fail('Voice recognition took too long. Retry the check.'), 30000);
+      const result = await this.job.promise;
+      if (!this.running || token !== this.token) return;
+      if (result.isAborted) throw new Error('Voice check cancelled.');
+      this.diagnostics.decodedUtterances = 1;
+      this.diagnostics.recognized = result.result.slice(0, 240);
+      this.diagnostics.matches = countPhrases(result.result);
+      this.diagnostics.checkState = 'complete';
+      this.publishDiagnostics(true);
+      this.checkCompletion?.resolve(); this.checkCompletion = null;
+    })().catch(() => {
+      if (this.running && token === this.token) this.fail('Voice check failed. Retry the check.');
+    }).finally(() => { this.checkWork = null; });
   }
 
   private runVad() {
@@ -171,7 +237,9 @@ export class OfflineEngine implements VoiceDetectionEngine {
     const token = this.token;
     this.decodeWork = (async () => {
       while (this.running && token === this.token && this.transcriptionQueue.length) {
-        this.job = this.models!.transcribe(this.transcriptionQueue.shift()!);
+        const samples = this.transcriptionQueue.shift()!;
+        this.diagnostics.utteranceSeconds = samples.length / 16000;
+        this.job = this.models!.transcribe(samples);
         this.decodeDeadline = setTimeout(() => this.fail('Voice recognition took too long. Pause and retry.'), 30000);
         const result = await this.job.promise;
         if (this.decodeDeadline) clearTimeout(this.decodeDeadline);
@@ -217,6 +285,8 @@ export class OfflineEngine implements VoiceDetectionEngine {
     this.running = false;
     this.audioState?.(false);
     this.startup?.reject(new Error('Microphone stopped.')); this.startup = null;
+    this.checkCompletion?.reject(new Error('Voice check cancelled.')); this.checkCompletion = null;
+    this.checkSamples = []; this.checkReceived = 0;
     if (this.watchdog) clearInterval(this.watchdog);
     this.watchdog = null;
     if (this.decodeDeadline) clearTimeout(this.decodeDeadline);
@@ -229,7 +299,7 @@ export class OfflineEngine implements VoiceDetectionEngine {
     this.stopping = (async () => {
       // Stop capture even if the decoder is slow. Await native abort before reuse.
       const results = await Promise.allSettled([this.capture.stop(), this.job?.stop()]);
-      await Promise.allSettled([this.vadWork, this.decodeWork]);
+      await Promise.allSettled([this.vadWork, this.decodeWork, this.checkWork]);
       const failure = results.find(result => result.status === 'rejected');
       if (failure?.status === 'rejected') throw failure.reason;
     })().finally(() => { this.stopping = null; });

@@ -1,6 +1,6 @@
 {
   "offline_model_initialization": "base Q5_1 and Silero VAD passed",
-  "voice_accuracy": "pending owner three-phrase test",
+  "voice_accuracy": "failed: three recitations, counter remained zero; see s10-v8-voice-diagnostics.json",
   "device": "Samsung S10 / Android 12",
   "version_code": 8,
   "source_commit": "3a97b486c9a6385c77c1afc211e346bfdced96e8",

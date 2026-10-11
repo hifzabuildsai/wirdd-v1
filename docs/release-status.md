@@ -1,5 +1,12 @@
 # Wirdd Android beta — 11 October 2026
 
+Latest physical result: v8 upgrades and launches on Samsung S10 / Android 12,
+but three spaced Astaghfirullah recitations still produced zero counts. Audio,
+VAD and recognition run; recognized words were wrong. Reliable voice is blocked.
+See `outputs/s10-v8-voice-diagnostics.json`. The next diagnostic candidate adds
+a bounded six-second whole-sample check that bypasses VAD and never adds counts.
+46 automated tests, typecheck and lint pass; they do not prove recognition.
+
 ## Scope
 
 Android local Astaghfirullah sessions, corrections, pause/resume/end, optional mood, progress, local deletion and permission guidance. No accounts, payments, sync, reminders or iOS release. Foreground voice only for this beta; app background/lock pauses voice. Locked-screen support remains a separate unaccepted feature, pending the owner's final requirement and device evidence.

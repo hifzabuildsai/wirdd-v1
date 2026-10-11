@@ -87,7 +87,7 @@ export default function SessionScreen() {
     void stopVoiceRef.current?.().catch(() => {});
     void stopForegroundService().catch(() => {});
   }, [pauseSession]);
-  const { start, stop, pause, resume, listening, diagnostics, isRequestingPermission } = useVoiceDetection(handleDetect, handleVoiceError);
+  const { start, stop, pause, resume, check, listening, diagnostics, isRequestingPermission } = useVoiceDetection(handleDetect, handleVoiceError);
   stopVoiceRef.current = stop;
 
   useEffect(() => {
@@ -151,6 +151,31 @@ export default function SessionScreen() {
       setError('Could not save a session. Check available storage and retry.');
     }
   }, [busy, startSession]);
+
+  const handleCheck = useCallback(async () => {
+    if (busy || (isActive && !isPaused)) return;
+    setBusy(true); setError(null); setNotice(null);
+    startingRef.current = true;
+    try { await check(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Voice check failed.'); }
+    finally { startingRef.current = false; setBusy(false); }
+  }, [busy, isActive, isPaused, check]);
+
+  const onePhraseCheck = <View>
+    <Pressable onPress={handleCheck} disabled={busy} accessibilityRole="button" accessibilityLabel="Check one recitation for six seconds">
+      <Text style={styles.stateLabel}>{busy ? 'Preparing or checking…' : 'Check one recitation (6 seconds)'}</Text>
+    </Pressable>
+    <Text style={styles.stateLabel}>{diagnostics.checkState === 'recording'
+      ? `Say Astaghfirullah once now · ${Math.max(0, 6 - diagnostics.audioSeconds).toFixed(0)}s left`
+      : diagnostics.checkState === 'decoding' ? 'Microphone off · recognizing the whole sample…'
+      : diagnostics.checkState === 'complete' ? 'Check complete · microphone off'
+      : 'Wait for “Say now”, recite once, then stay quiet. This check adds no counts.'}</Text>
+    {diagnostics.checkState !== 'idle' && <>
+      <Text style={styles.stateLabel}>Sample: {diagnostics.utteranceSeconds.toFixed(1)}s · Peak sound level: {(diagnostics.peakLevel * 100).toFixed(2)}%</Text>
+      <Text style={styles.stateLabel}>Last recognized: {diagnostics.recognized || 'None yet'} · Phrase matches: {diagnostics.matches}</Text>
+      <Text style={styles.stateLabel}>Audio and recognized text are not saved.</Text>
+    </>}
+  </View>;
 
   const handlePauseResume = useCallback(async () => {
     if (busy) return;
@@ -259,8 +284,10 @@ export default function SessionScreen() {
             {voiceCheck && <View>
               <Text style={styles.stateLabel}>Audio received: {diagnostics.audioSeconds.toFixed(1)}s · Sound level: {(diagnostics.level * 100).toFixed(2)}%</Text>
               <Text style={styles.stateLabel}>Speech windows: {diagnostics.speechWindows} · Recognitions: {diagnostics.decodedUtterances}</Text>
+              <Text style={styles.stateLabel}>Last sample: {diagnostics.utteranceSeconds.toFixed(1)}s · Peak sound level: {(diagnostics.peakLevel * 100).toFixed(2)}%</Text>
               <Text style={styles.stateLabel}>Last recognized: {diagnostics.recognized || 'None yet'} · Phrase matches: {diagnostics.matches}</Text>
               <Text style={styles.stateLabel}>Live check only. Audio and recognized text are not saved.</Text>
+              {isPaused && onePhraseCheck}
             </View>}
           </>}
 
@@ -293,6 +320,7 @@ export default function SessionScreen() {
           <Pressable onPress={handleManualStart} disabled={busy} accessibilityRole="button" accessibilityLabel="Start manual count">
             <Text style={styles.stateLabel}>Count manually instead</Text>
           </Pressable>
+          {voiceSupported && onePhraseCheck}
         </View>
       )}
 
