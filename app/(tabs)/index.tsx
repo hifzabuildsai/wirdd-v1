@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import { AppState, Modal, Platform, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
 import { useSessionStore } from '@/stores/sessionStore';
-import { useProfileStore } from '@/stores/profileStore';
 import { useVoiceDetection } from '@/hooks/useVoiceDetection';
 import { CounterCircle } from '@/components/session/CounterCircle';
 import { ListeningIndicator } from '@/components/session/ListeningIndicator';
@@ -18,8 +17,7 @@ import {
   startForegroundService,
   stopForegroundService,
   requestNotificationUpdate,
-  registerSessionCallbacks,
-  clearSessionCallbacks,
+  setNotificationPaused,
 } from '@/services/foregroundService';
 
 // ── Mood options ───────────────────────────────────────────────────────────
@@ -33,99 +31,231 @@ const MOODS = [
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function SessionScreen() {
+  const voiceSupported = Platform.OS === 'android';
   const router = useRouter();
   const {
     isActive,
+    isPaused,
     count,
+    mode,
     startSession,
     stopSession,
     pauseSession,
     resumeSession,
     increment,
+    decrement,
   } = useSessionStore();
-  const { isPro } = useProfileStore();
   const detectionSignal = useSharedValue(0);
 
   const [moodVisible, setMoodVisible] = useState(false);
   const [pendingLocalId, setPendingLocalId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [voiceCheck, setVoiceCheck] = useState(false);
+  const manual = mode === 'manual';
+  const startingRef = useRef(false);
+  const bufferedRef = useRef(0);
+  const startupErrorRef = useRef<string | null>(null);
+  const stopVoiceRef = useRef<(() => Promise<void>) | null>(null);
 
-  // Called on every Porcupine detection
-  const handleDetect = useCallback(() => {
-    increment();
-    detectionSignal.value = detectionSignal.value + 1;
-    if (isPro) {
-      // Zustand set is synchronous — getState().count reflects the post-increment value
-      requestNotificationUpdate(useSessionStore.getState().count);
+  const handleDetect = useCallback((detected: number) => {
+    if (startingRef.current) { bufferedRef.current += detected; return; }
+    if (!useSessionStore.getState().isActive) {
+      return;
     }
-  }, [increment, detectionSignal, isPro]);
+    try {
+      for (let i = 0; i < detected; i++) {
+        if (!useSessionStore.getState().isPaused) {
+          increment();
+          detectionSignal.value = detectionSignal.value + 1;
+        }
+      }
+      requestNotificationUpdate(useSessionStore.getState().count);
+    } catch {
+      pauseSession();
+      void stopVoiceRef.current?.();
+      void stopForegroundService().catch(() => {});
+      setError('Could not save a count. Microphone paused; check storage and retry.');
+    }
+  }, [increment, pauseSession, detectionSignal]);
 
-  const { start, stop, pause, resume } = useVoiceDetection(handleDetect);
+  const handleVoiceError = useCallback((message: string) => {
+    startupErrorRef.current = message;
+    setError(message);
+    pauseSession();
+    void stopVoiceRef.current?.().catch(() => {});
+    void stopForegroundService().catch(() => {});
+  }, [pauseSession]);
+  const { start, stop, pause, resume, check, listening, diagnostics, isRequestingPermission } = useVoiceDetection(handleDetect, handleVoiceError);
+  stopVoiceRef.current = stop;
 
-  // Stable refs so callbacks registered with foregroundService never close over stale fns
-  const stopRef = useRef(stop);
-  const pauseRef = useRef(pause);
-  const resumeRef = useRef(resume);
-  stopRef.current = stop;
-  pauseRef.current = pause;
-  resumeRef.current = resume;
-
-  // Register notification action callbacks while session is active
   useEffect(() => {
-    if (!isActive || !isPro) return;
-
-    registerSessionCallbacks({
-      onPause: () => {
-        pauseRef.current();
-        pauseSession();
-      },
-      onResume: () => {
-        resumeRef.current();
-        resumeSession();
-      },
-      onEnd: () => {
-        stopRef.current().then(() => {
-          stopSession();
-          stopForegroundService();
-        });
-      },
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active' || manual) return;
+      if (isRequestingPermission()) return;
+      const session = useSessionStore.getState();
+      if (!session.isActive && !startingRef.current) return;
+      startupErrorRef.current = 'Voice paused when Wirdd left the foreground.';
+      pauseSession();
+      void stop().catch(() => {});
+      void stopForegroundService().catch(() => {});
+      setNotice('Voice paused because the app was backgrounded or the screen locked. Return here and tap Resume.');
     });
+    return () => { subscription.remove(); };
+  }, [manual, pauseSession, stop, isRequestingPermission]);
 
-    return () => clearSessionCallbacks();
-  }, [isActive, isPro, pauseSession, resumeSession, stopSession]);
+  useEffect(() => () => {
+    // A surviving store session must not claim its destroyed engine is running.
+    useSessionStore.getState().pauseSession();
+    void stopForegroundService().catch(() => {});
+  }, []);
 
   const handleStart = useCallback(async () => {
-    startSession();
-    await start();
-    if (isPro) {
-      await startForegroundService(0);
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    startingRef.current = true;
+    bufferedRef.current = 0;
+    startupErrorRef.current = null;
+    try {
+      await start();
+      if (AppState.currentState !== 'active') throw new Error('Keep Wirdd open to start voice counting.');
+      if (startupErrorRef.current) throw new Error(startupErrorRef.current);
+      const notificationVisible = await startForegroundService(0);
+      if (AppState.currentState !== 'active') throw new Error('Keep Wirdd open to start voice counting.');
+      if (startupErrorRef.current) throw new Error(startupErrorRef.current);
+      startSession();
+      startingRef.current = false;
+      setNotice(notificationVisible ? 'Keep Wirdd open. Voice pauses when the app is backgrounded or the screen locks.' : 'Notifications are off. Keep Wirdd open; voice pauses in the background or when the screen locks.');
+      if (bufferedRef.current > 0) handleDetect(bufferedRef.current);
+    } catch (cause) {
+      await stop().catch(() => {});
+      await stopForegroundService().catch(() => {});
+      setError(cause instanceof Error ? cause.message : 'Microphone failed to start.');
+    } finally {
+      startingRef.current = false;
+      bufferedRef.current = 0;
+      setBusy(false);
     }
-  }, [startSession, start, isPro]);
+  }, [busy, startSession, start, stop, handleDetect]);
+
+  const handleManualStart = useCallback(() => {
+    if (busy) return;
+    setError(null);
+    setNotice(null);
+    try {
+      startSession('manual');
+    } catch {
+      setError('Could not save a session. Check available storage and retry.');
+    }
+  }, [busy, startSession]);
+
+  const handleCheck = useCallback(async () => {
+    if (busy || (isActive && !isPaused)) return;
+    setBusy(true); setError(null); setNotice(null);
+    startingRef.current = true;
+    try { await check(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Voice check failed.'); }
+    finally { startingRef.current = false; setBusy(false); }
+  }, [busy, isActive, isPaused, check]);
+
+  const onePhraseCheck = <View>
+    <Pressable onPress={handleCheck} disabled={busy} accessibilityRole="button" accessibilityLabel="Check one recitation for six seconds">
+      <Text style={styles.stateLabel}>{busy ? 'Preparing or checking…' : 'Check one recitation (6 seconds)'}</Text>
+    </Pressable>
+    <Text style={styles.stateLabel}>{diagnostics.checkState === 'recording'
+      ? `Say Astaghfirullah once now · ${Math.max(0, 6 - diagnostics.audioSeconds).toFixed(0)}s left`
+      : diagnostics.checkState === 'decoding' ? 'Microphone off · recognizing the whole sample…'
+      : diagnostics.checkState === 'complete' ? 'Check complete · microphone off'
+      : 'Wait for “Say now”, recite once, then stay quiet. This check adds no counts.'}</Text>
+    {diagnostics.checkState !== 'idle' && <>
+      <Text style={styles.stateLabel}>Sample: {diagnostics.utteranceSeconds.toFixed(1)}s · Peak sound level: {(diagnostics.peakLevel * 100).toFixed(2)}%</Text>
+      <Text style={styles.stateLabel}>Last recognized: {diagnostics.recognized || 'None yet'} · Phrase matches: {diagnostics.matches}</Text>
+      <Text style={styles.stateLabel}>Audio and recognized text are not saved.</Text>
+    </>}
+  </View>;
+
+  const handlePauseResume = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    startupErrorRef.current = null;
+    try {
+      if (isPaused) {
+        if (!manual) {
+          startingRef.current = true;
+          bufferedRef.current = 0;
+          await resume();
+          if (AppState.currentState !== 'active') throw new Error('Keep Wirdd open to resume voice counting.');
+          if (startupErrorRef.current) throw new Error(startupErrorRef.current);
+          await startForegroundService(useSessionStore.getState().count);
+          if (startupErrorRef.current || AppState.currentState !== 'active') throw new Error('Voice paused during resume. Keep Wirdd open and retry.');
+        }
+        resumeSession();
+        startingRef.current = false;
+        if (bufferedRef.current > 0) handleDetect(bufferedRef.current);
+        setError(null);
+        if (!manual) setNotice('Keep Wirdd open. Voice pauses when the app is backgrounded or the screen locks.');
+      } else {
+        if (!manual) await pause();
+        pauseSession();
+        await stopForegroundService();
+      }
+    } catch (cause) {
+      await stop().catch(() => {});
+      pauseSession();
+      await stopForegroundService().catch(() => {});
+      setError(cause instanceof Error ? cause.message : 'Microphone could not resume.');
+    } finally {
+      startingRef.current = false;
+      bufferedRef.current = 0;
+      setBusy(false);
+    }
+  }, [busy, isPaused, manual, pause, resume, stop, pauseSession, resumeSession, handleDetect]);
 
   const handleStop = useCallback(async () => {
+    if (busy) return;
     // Capture localId before stopSession() resets it to null
     const sessionLocalId = useSessionStore.getState().localId;
-    await stop();
-    stopSession();
-    if (isPro) {
-      await stopForegroundService();
+    setBusy(true);
+    try {
+      try { await stop(); } catch { /* The saved count is still valid. */ }
+      stopSession();
+      if (sessionLocalId) {
+        setPendingLocalId(sessionLocalId);
+        setMoodVisible(true);
+      }
+    } catch (cause) {
+      pauseSession();
+      setError(cause instanceof Error ? cause.message : 'Could not save the session. Try ending it again.');
+    } finally {
+      await stopForegroundService().catch(() => {});
+      setBusy(false);
     }
-    if (sessionLocalId) {
-      setPendingLocalId(sessionLocalId);
-      setMoodVisible(true);
-    }
-  }, [stop, stopSession, isPro]);
+  }, [busy, stop, stopSession, pauseSession]);
 
   const handleManualIncrement = useCallback(() => {
-    increment();
-    detectionSignal.value = detectionSignal.value + 1;
-    if (isPro) {
-      requestNotificationUpdate(useSessionStore.getState().count);
+    handleDetect(1);
+    if (isPaused) void setNotificationPaused(useSessionStore.getState().count, true).catch(() => {});
+  }, [handleDetect, isPaused]);
+
+  const handleCorrection = useCallback(() => {
+    try {
+      decrement();
+      void setNotificationPaused(useSessionStore.getState().count, isPaused).catch(() => {});
+    } catch {
+      setError('Could not save the correction. Check storage and retry.');
     }
-  }, [increment, detectionSignal, isPro]);
+  }, [decrement, isPaused]);
 
   function handleMoodSelect(mood: string | null) {
     if (mood && pendingLocalId) {
-      updateSessionMood(pendingLocalId, mood);
+      try { updateSessionMood(pendingLocalId, mood); }
+      catch {
+        setError('Session saved, but the mood could not be saved. Retry or skip.');
+        return;
+      }
     }
     setMoodVisible(false);
     setPendingLocalId(null);
@@ -133,7 +263,7 @@ export default function SessionScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       {isActive ? (
         <View style={styles.activeContainer}>
           <View style={styles.counterWrap}>
@@ -142,13 +272,36 @@ export default function SessionScreen() {
             <CounterCircle count={count} detectionSignal={detectionSignal} />
           </View>
 
-          <ListeningIndicator />
+          {!manual && !isPaused && !error && listening ? <View accessibilityLabel="Microphone listening"><ListeningIndicator /><Text style={styles.stateLabel}>Microphone listening</Text></View> : (
+            <Text style={styles.stateLabel}>{manual ? 'Manual counting' : isPaused ? 'Paused · microphone off' : error ? 'Microphone unavailable' : 'Reconnecting microphone…'}</Text>
+          )}
+          {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
+          {notice && <Text style={styles.stateLabel} accessibilityRole="alert">{notice}</Text>}
+          {!manual && <>
+            <Pressable onPress={() => setVoiceCheck(value => !value)} accessibilityRole="button" accessibilityLabel="Toggle voice check" accessibilityState={{ expanded: voiceCheck }}>
+              <Text style={styles.stateLabel}>{voiceCheck ? 'Hide voice check' : 'Voice check'}</Text>
+            </Pressable>
+            {voiceCheck && <View>
+              <Text style={styles.stateLabel}>Audio received: {diagnostics.audioSeconds.toFixed(1)}s · Sound level: {(diagnostics.level * 100).toFixed(2)}%</Text>
+              <Text style={styles.stateLabel}>Speech windows: {diagnostics.speechWindows} · Recognitions: {diagnostics.decodedUtterances}</Text>
+              <Text style={styles.stateLabel}>Last sample: {diagnostics.utteranceSeconds.toFixed(1)}s · Peak sound level: {(diagnostics.peakLevel * 100).toFixed(2)}%</Text>
+              <Text style={styles.stateLabel}>Last recognized: {diagnostics.recognized || 'None yet'} · Phrase matches: {diagnostics.matches}</Text>
+              <Text style={styles.stateLabel}>Live check only. Audio and recognized text are not saved.</Text>
+              {isPaused && onePhraseCheck}
+            </View>}
+          </>}
 
           <View style={styles.actionRow}>
-            <Pressable style={styles.plusButton} onPress={handleManualIncrement}>
+            <Pressable style={styles.plusButton} onPress={handleManualIncrement} disabled={isPaused || busy} accessibilityRole="button" accessibilityLabel="Add one count">
               <Text style={styles.plusLabel}>+1</Text>
             </Pressable>
-            <Pressable style={styles.stopButton} onPress={handleStop}>
+            <Pressable style={styles.plusButton} onPress={handleCorrection} disabled={count === 0 || busy} accessibilityRole="button" accessibilityLabel="Remove one extra count">
+              <Text style={styles.plusLabel}>−1</Text>
+            </Pressable>
+            <Pressable style={styles.stopButton} onPress={handlePauseResume} disabled={busy} accessibilityRole="button" accessibilityLabel={isPaused ? 'Resume session' : 'Pause session'}>
+              <Text style={styles.stopLabel}>{isPaused ? 'Resume' : 'Pause'}</Text>
+            </Pressable>
+            <Pressable style={styles.stopButton} onPress={handleStop} disabled={busy} accessibilityRole="button" accessibilityLabel="End and save session">
               <Ionicons name="stop-circle-outline" size={20} color={Colors.textSecondary} />
               <Text style={styles.stopLabel}>Stop</Text>
             </Pressable>
@@ -158,10 +311,16 @@ export default function SessionScreen() {
         <View style={styles.idleContainer}>
           <Text style={styles.arabicPhrase}>أَسْتَغْفِرُ اللّٰه</Text>
           <Text style={styles.latinPhrase}>Astaghfirullah</Text>
-          <Pressable style={styles.startButton} onPress={handleStart}>
+          <Pressable style={[styles.startButton, !voiceSupported && { opacity: 0.4 }]} onPress={handleStart} disabled={busy || !voiceSupported} accessibilityRole="button" accessibilityLabel="Start voice session" accessibilityState={{ disabled: busy || !voiceSupported }}>
             <Ionicons name="mic" size={30} color={Colors.background} />
           </Pressable>
-          <Text style={styles.startHint}>Say Astaghfirullah to begin</Text>
+          <Text style={styles.startHint}>{busy ? 'Preparing offline voice…' : voiceSupported ? 'Tap to start offline voice · beta' : 'Voice requires Android · count manually below'}</Text>
+          {voiceSupported && <Text style={styles.stateLabel}>Recite clearly, then pause briefly. Counts may take a few seconds.</Text>}
+          {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
+          <Pressable onPress={handleManualStart} disabled={busy} accessibilityRole="button" accessibilityLabel="Start manual count">
+            <Text style={styles.stateLabel}>Count manually instead</Text>
+          </Pressable>
+          {voiceSupported && onePhraseCheck}
         </View>
       )}
 
@@ -180,6 +339,7 @@ export default function SessionScreen() {
                 <Text style={modal.skip}>Skip</Text>
               </Pressable>
             </View>
+            {error && <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>}
 
             {MOODS.map(({ emoji, label, key }) => (
               <Pressable key={key} style={modal.row} onPress={() => handleMoodSelect(key)}>
@@ -190,7 +350,7 @@ export default function SessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -198,16 +358,19 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 32,
   },
 
   // ── Active state ─────────────────────────────────────────────────────────
   activeContainer: {
     alignItems: 'center',
-    gap: 36,
+    gap: 24,
+    maxWidth: '100%',
   },
   counterWrap: {
     alignItems: 'center',
@@ -216,7 +379,24 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  stateLabel: {
+    fontFamily: Fonts.ui,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
+  errorText: {
+    fontFamily: Fonts.ui,
+    fontSize: 14,
+    lineHeight: 21,
+    color: Colors.gold,
+    textAlign: 'center',
+    maxWidth: 300,
   },
   plusButton: {
     paddingHorizontal: 20,

@@ -1,0 +1,16 @@
+{
+  "device": "Samsung Galaxy S10 (SM-G973F)",
+  "android": "12",
+  "date": "2026-10-11",
+  "apk_version_code": 4,
+  "source_commit": "90e805041e4278c5be8843ee583bb69c1d1462e8",
+  "initial_adb_install_error": "INSTALL_FAILED_INSUFFICIENT_STORAGE",
+  "storage_before": "616 MB available",
+  "storage_after": "4.2 GB available",
+  "adb_install_after_cleanup": "Success",
+  "owner_recording": "onboarding, session, dashboard and settings open",
+  "owner_manual_sessions": [5, 8],
+  "owner_dashboard_total": 13,
+  "owner_reopen_retained_total": 13,
+  "physical_voice_accuracy": "not tested"
+}

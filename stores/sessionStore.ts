@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { insertSession, endSession, refreshDailySummary } from '@/services/database';
+import { insertSession, endSession, changeSessionCount } from '@/services/database';
 
 function makeLocalId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -13,11 +13,13 @@ interface SessionState {
   startedAt: number | null;
   localId: string | null;
   phraseId: string;
-  startSession: () => void;
+  mode: 'voice' | 'manual';
+  startSession: (mode?: 'voice' | 'manual') => void;
   stopSession: () => void;
   pauseSession: () => void;
   resumeSession: () => void;
   increment: () => void;
+  decrement: () => void;
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
@@ -27,12 +29,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   startedAt: null,
   localId: null,
   phraseId: 'astaghfirullah',
+  mode: 'voice',
 
-  startSession: () => {
+  startSession: (mode = 'voice') => {
+    if (get().isActive) return;
     const localId = makeLocalId();
     const startedAt = Date.now();
     insertSession(localId, startedAt, get().phraseId);
-    set({ isActive: true, isPaused: false, count: 0, startedAt, localId });
+    set({ isActive: true, isPaused: false, count: 0, startedAt, localId, mode });
   },
 
   stopSession: () => {
@@ -40,13 +44,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!localId || startedAt === null) return;
     const endedAt = Date.now();
     endSession(localId, endedAt, count);
-    const date = new Date(endedAt).toISOString().slice(0, 10);
-    refreshDailySummary(date);
-    set({ isActive: false, isPaused: false, startedAt: null, localId: null });
+    set({ isActive: false, isPaused: false, startedAt: null, localId: null, mode: 'voice' });
   },
 
-  pauseSession: () => set({ isPaused: true }),
-  resumeSession: () => set({ isPaused: false }),
+  pauseSession: () => { if (get().isActive) set({ isPaused: true }); },
+  resumeSession: () => { if (get().isActive) set({ isPaused: false }); },
 
-  increment: () => set((s) => ({ count: s.count + 1 })),
+  increment: () => {
+    const { isActive, localId } = get();
+    if (isActive && localId) set({ count: changeSessionCount(localId, 1) });
+  },
+  decrement: () => {
+    const { isActive, localId, count } = get();
+    if (isActive && localId && count > 0) set({ count: changeSessionCount(localId, -1) });
+  },
 }));

@@ -1,0 +1,14 @@
+{
+  "workflow_url": "https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38086200345",
+  "conclusion": "success",
+  "apk_source_commit": "90e805041e4278c5be8843ee583bb69c1d1462e8",
+  "version_code": 4,
+  "android_api": 31,
+  "baseline_install": "passed",
+  "candidate_clean_install": "passed",
+  "candidate_upgrade_preserved_count": 3,
+  "restart_preserved_count": 3,
+  "networking_enabled_during_manual_test": false,
+  "physical_device": false,
+  "voice_accuracy": "not tested"
+}

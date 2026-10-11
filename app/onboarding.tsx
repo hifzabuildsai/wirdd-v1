@@ -103,8 +103,8 @@ function PrivacySlide({ onBegin }: { onBegin: () => void }) {
     <View style={[slide.container, { width: W }]}>
       <Text style={slide.headline}>Between you{'\n'}and Allah.</Text>
       <Text style={slide.sub}>
-        No audio is stored. No servers hear you.{'\n'}
-        Detection happens on your device, only.
+        Wirdd processes your voice on this phone.{'\n'}
+        Offline voice counting is in beta. Recite clearly and pause briefly.
       </Text>
       <Pressable style={slide.cta} onPress={onBegin}>
         <Text style={slide.ctaText}>Begin →</Text>
@@ -188,14 +188,17 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const listRef = useRef<FlatList<SlideKey>>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSkip() {
-    AsyncStorage.setItem('@wirdd/onboarded', '1');
-    router.replace('/(tabs)');
+  async function handleSkip() {
+    try {
+      await AsyncStorage.setItem('@wirdd/onboarded', '1');
+      router.replace('/(tabs)');
+    } catch { setError('Could not save setup. Check storage and retry.'); }
   }
 
   function handleBegin() {
-    router.push('/auth');
+    router.push('/permission');
   }
 
   function renderSlide({ item }: ListRenderItemInfo<SlideKey>) {
@@ -213,6 +216,7 @@ export default function OnboardingScreen() {
       <Pressable style={styles.skipBtn} onPress={handleSkip} hitSlop={16}>
         <Text style={styles.skipText}>Skip</Text>
       </Pressable>
+      {error && <Text accessibilityRole="alert" style={{ color: Colors.gold, paddingHorizontal: 24, paddingTop: 100 }}>{error}</Text>}
 
       {/* Slides */}
       <FlatList<SlideKey>

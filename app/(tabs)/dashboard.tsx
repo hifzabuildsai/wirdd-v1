@@ -1,10 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
-import { getRecentSummaries, getSummaryByDate, type DailySummary } from '@/services/database';
+import { getActiveSummaries, getRecentSummaries, getRecentSessions, getSummaryByDate, localDate, type DailySummary, type Session } from '@/services/database';
+import { computeStreak } from '@/services/dates';
+import { useProgressRefresh } from '@/hooks/useProgressRefresh';
+import { useSessionStore } from '@/stores/sessionStore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +23,7 @@ interface ChartDay {
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const;
 
 function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 function buildChartData(summaries: DailySummary[], today: string): ChartDay[] {
@@ -29,7 +32,7 @@ function buildChartData(summaries: DailySummary[], today: string): ChartDay[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const date = d.toISOString().slice(0, 10);
+    const date = localDate(d.getTime());
     days.push({
       date,
       label: DAY_LETTERS[d.getDay()],
@@ -38,21 +41,6 @@ function buildChartData(summaries: DailySummary[], today: string): ChartDay[] {
     });
   }
   return days;
-}
-
-function computeStreak(summaries: DailySummary[], today: string): number {
-  const map = new Map(summaries.map((s) => [s.date, s.total_count]));
-  let streak = 0;
-  const cursor = new Date(today);
-  while (true) {
-    const date = cursor.toISOString().slice(0, 10);
-    const count = map.get(date) ?? 0;
-    if (count === 0) break;
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-    if (streak > summaries.length) break;
-  }
-  return streak;
 }
 
 // ── BarChart ───────────────────────────────────────────────────────────────
@@ -139,9 +127,12 @@ const chartStyles = StyleSheet.create({
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
+  const revision = useProgressRefresh();
+  const liveCount = useSessionStore(state => state.count);
   const [todayCount, setTodayCount] = useState(0);
   const [streak, setStreak] = useState(0);
   const [chartData, setChartData] = useState<ChartDay[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -150,10 +141,19 @@ export default function DashboardScreen() {
       const todaySummary = getSummaryByDate(today);
 
       setTodayCount(todaySummary?.total_count ?? 0);
-      setStreak(computeStreak(summaries, today));
+      setStreak(computeStreak(getActiveSummaries(), today));
       setChartData(buildChartData(summaries, today));
+      setSessions(getRecentSessions(10));
     }, []),
   );
+
+  useEffect(() => {
+    const today = todayString();
+    setTodayCount(getSummaryByDate(today)?.total_count ?? 0);
+    setStreak(computeStreak(getActiveSummaries(), today));
+    setChartData(buildChartData(getRecentSummaries(30), today));
+    setSessions(getRecentSessions(10));
+  }, [liveCount, revision]);
 
   const isEmpty = todayCount === 0 && streak === 0;
 
@@ -180,6 +180,16 @@ export default function DashboardScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>LAST 7 DAYS</Text>
         <BarChart data={chartData} />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>RECENT SESSIONS</Text>
+        {sessions.length === 0 ? <Text style={styles.emptyHint}>No saved sessions yet</Text> : sessions.map(session => (
+          <View key={session.local_id} style={styles.sessionRow}>
+            <Text style={styles.sessionDate}>{new Date(session.started_at).toLocaleString()}</Text>
+            <Text style={styles.sessionCount}>{session.count}</Text>
+          </View>
+        ))}
       </View>
 
       {isEmpty && (
@@ -250,5 +260,25 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     marginTop: 8,
+  },
+  sessionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: 12,
+  },
+  sessionDate: {
+    fontFamily: Fonts.ui,
+    color: Colors.textSecondary,
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  sessionCount: {
+    fontFamily: Fonts.display,
+    color: Colors.gold,
+    fontSize: 24,
   },
 });

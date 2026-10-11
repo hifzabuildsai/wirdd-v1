@@ -1,0 +1,75 @@
+{
+  "filename": "wirdd-candidate.apk",
+  "bytes": 121984011,
+  "sha256": "b882903e1696428bcb2698ce34354f0a1035863aa5a861e4310d0d84bcfa415e",
+  "zip_crc_valid": true,
+  "manifest": {
+    "versionCode": 4,
+    "versionName": "1.0.0",
+    "compileSdkVersion": 36,
+    "compileSdkVersionCodename": "16",
+    "package": "app.wirdd.android",
+    "platformBuildVersionCode": 36,
+    "platformBuildVersionName": 16
+  },
+  "sdk": [
+    {
+      "minSdkVersion": 24,
+      "targetSdkVersion": 36
+    }
+  ],
+  "permissions": [
+    {
+      "name": "android.permission.FOREGROUND_SERVICE"
+    },
+    {
+      "name": "android.permission.FOREGROUND_SERVICE_MICROPHONE"
+    },
+    {
+      "name": "android.permission.INTERNET"
+    },
+    {
+      "name": "android.permission.POST_NOTIFICATIONS"
+    },
+    {
+      "name": "android.permission.RECORD_AUDIO"
+    },
+    {
+      "name": "android.permission.VIBRATE"
+    },
+    {
+      "name": "android.permission.ACCESS_NETWORK_STATE"
+    },
+    {
+      "name": "android.permission.WAKE_LOCK"
+    },
+    {
+      "name": "app.wirdd.android.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    }
+  ],
+  "application": [
+    {
+      "theme": 2131886093,
+      "label": 2131820573,
+      "icon": 2131623936,
+      "name": "app.wirdd.android.MainApplication",
+      "allowBackup": false,
+      "supportsRtl": true,
+      "extractNativeLibs": false,
+      "roundIcon": 2131623940,
+      "appComponentFactory": "androidx.core.app.CoreComponentFactory",
+      "enableOnBackInvokedCallback": false
+    }
+  ],
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86",
+    "x86_64"
+  ],
+  "bundled_js": true,
+  "v2_certificate_sha256": [
+    "52b3206a45c3e50561c6a1aa815152910fd5bcc0a5c5eeaea5f7293ebd3758c6"
+  ],
+  "note": "Certificate fingerprints extracted only; cryptographic signature verification and device installation are still required."
+}
