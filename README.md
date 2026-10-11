@@ -1,6 +1,6 @@
 # Wirdd · Android tester edition
 
-Wirdd counts Astaghfirullah in local sessions. APK v4 installation and manual history reopening were verified on the owner's Samsung S10/Android 12. The new offline voice candidate still needs native build and physical microphone acceptance. This is a beta; no account or checkout flow.
+Wirdd counts Astaghfirullah in local sessions. APK installation and manual history reopening were verified on the owner's Samsung S10/Android 12. v5 microphone starts but owner testing found no voice increments; a PCM16 boundary correction is in the v6 build. Physical voice acceptance remains open. This is a beta; no account or checkout flow.
 
 ## Setup
 
