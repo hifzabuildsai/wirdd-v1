@@ -15,5 +15,5 @@
   "interpretation": "capture, speech detection and recognition execute; last recognized words incorrect; model accuracy or utterance boundaries need investigation",
   "additional_defect": "permission prompt background transition cancels first start; second start succeeds after grant",
   "voice_accuracy": "failed",
-  "raw_audio_and_recognized_text": "not persisted or committed"
+  "app_audio_and_transcript_storage": "none; diagnostic screenshots are local and Git-ignored"
 }

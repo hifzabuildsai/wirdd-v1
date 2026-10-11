@@ -1,17 +1,18 @@
 {
-  "build_id": "16f012a3-c86d-460d-b137-bc622fd7aabd",
+  "build_id": "9a788b9c-5db3-48ef-a95f-86e5f125b78f",
   "status": "FINISHED",
-  "source_commit": "067c6f3c982d37905213d72afbd093086d9fe0f3",
-  "version_code": "7",
+  "source_commit": "3a97b486c9a6385c77c1afc211e346bfdced96e8",
+  "version_code": "8",
   "package": "app.wirdd.android",
-  "apk_url": "https://expo.dev/artifacts/eas/kIdjsnVM38hB09X5PRhCpeGubgYv4W-EqijaL9-pP9Q.apk",
-  "build_page": "https://expo.dev/accounts/hifza-zafar/projects/wirdd/builds/16f012a3-c86d-460d-b137-bc622fd7aabd",
-  "physical_install": "v7 upgrade in progress",
-  "physical_voice_accuracy": "pending diagnostic readings; v5 and v6 owner tests detected zero",
+  "apk_url": "https://expo.dev/artifacts/eas/iopuxmW4wLZujiHAE7XAa9Mc2yP44xbbaOrlyBfkkio.apk",
+  "build_page": "https://expo.dev/accounts/hifza-zafar/projects/wirdd/builds/9a788b9c-5db3-48ef-a95f-86e5f125b78f",
+  "physical_install": "passed: S10 ADB install -r Success and cold launch",
+  "physical_voice_accuracy": "pending base Q5_1 retest; v7 diagnostics showed incorrect recognized words and zero matches",
   "confirmed_device": "Samsung S10 / Android 12",
-  "apk_sha256": "0ea81961a3bb8f341a1d64733f43bdcce1065ebccb4cac8a5969bcd7c7f6d84c",
+  "apk_sha256": "560b820834c8935b948d67a035dd484bdc98aaaa71f645f9189ce7150394d926",
   "signing_certificate_matches_baseline": true,
-  "automated_tests_passed": 40,
+  "automated_tests_passed": 44,
   "expo_doctor": "17/18; Notifee maintenance warning; whisper.rn and local module lack directory metadata",
-  "emulator_smoke": "v7 pending; v6 lifecycle passed but real voice failed"
+  "emulator_smoke": "v8 pending; v7 lifecycle passed but phrase test failed",
+  "physical_mic_startup": "passed: bundled base/VAD loaded and Microphone listening shown; actual PCM received"
 }

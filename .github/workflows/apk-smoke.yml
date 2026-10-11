@@ -7,6 +7,8 @@ on:
       - outputs/candidate-build.json
       - .github/workflows/apk-smoke.yml
       - scripts/android_smoke.py
+      - scripts/inspect_voice_bundle.py
+      - scripts/voice-models.json
   workflow_dispatch:
 
 permissions:
@@ -38,6 +40,8 @@ jobs:
               raise ValueError('Artifact checksum mismatch')
             Path(os.environ['RUNNER_TEMP'], name + '.apk').write_bytes(data)
           PY
+      - name: Verify bundled offline weights and license notices
+        run: python3 scripts/inspect_voice_bundle.py "$RUNNER_TEMP/candidate.apk" --output outputs/native-smoke/voice-bundle.json
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
