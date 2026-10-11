@@ -14,10 +14,21 @@ The tester APK includes ARM64 and x86_64; 32-bit devices are outside this candid
 
 Build v5 `86c74898-b960-4536-b549-b864814351f0` finished and was upgraded on the
 S10 without uninstalling. App cold launch and Dashboard still show total 13 and
-the two previous sessions. Microphone startup/accuracy remain pending. Both model
+the two previous sessions. Owner confirmed microphone listening, but reported no
+voice increments. v5 is not a successful voice candidate. Both model
 file hashes were checked in the packaged APK, alongside all license notices.
 
-PCM is converted to float32 in memory. Half-second VAD windows collect disjoint
+Root cause found in the pinned library: its native `requireAudioBufferArgument`
+calls `decodePcm16`, although the TypeScript VAD comment says Float32. v5 passed
+Float32 bytes into both native VAD and transcription, corrupting the waveform
+and doubling its sample count. The correction explicitly encodes little-endian
+PCM16 at both library boundaries. Regression tests check byte length, sample
+values, endianness and overload handling. Physical recognition must be retested.
+The v5 emulator startup/pause/resume smoke passed but did not exercise speech;
+it cannot validate this boundary or accuracy.
+
+PCM is converted to float32 for internal buffering and back to PCM16 for native
+model calls. Half-second VAD windows collect disjoint
 utterances with a silence-only pre-roll. One second of silence ends an utterance.
 Only complete transcription results increment counts, so revisable partial
 transcripts cannot double count. No prompt or previous-transcript context biases

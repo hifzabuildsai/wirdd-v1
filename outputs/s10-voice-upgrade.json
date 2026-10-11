@@ -11,6 +11,6 @@
     5,
     8
   ],
-  "voice_accuracy": "pending",
-  "mic_startup": "pending"
+  "voice_accuracy": "owner reported no voice increments; PCM format defect found; corrected candidate pending",
+  "mic_startup": "owner confirmed Microphone listening"
 }

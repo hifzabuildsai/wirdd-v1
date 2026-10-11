@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { requireNativeModule } from 'expo';
 import { Buffer } from 'safe-buffer';
 import { OfflineEngine } from './offlineEngine';
+import { toPcm16 } from './pcm16';
 import type { OfflineCapture, OfflineModels } from './offlineEngine';
 
 type AudioModule = {
@@ -40,11 +41,11 @@ async function loadModels(): Promise<OfflineModels> {
       filePath: require('../../assets/models/ggml-silero-v6.2.0.bin'), useGpu: false, nThreads: 1,
     });
     return {
-      hasSpeech: async samples => (await vad.detectSpeechData(samples.buffer as ArrayBuffer, {
+      hasSpeech: async samples => (await vad.detectSpeechData(toPcm16(samples), {
         threshold: 0.5, minSpeechDurationMs: 100, minSilenceDurationMs: 100,
         maxSpeechDurationS: 0.5, speechPadMs: 0, samplesOverlap: 0,
       })).length > 0,
-      transcribe: samples => whisper.transcribeData(samples.buffer as ArrayBuffer, {
+      transcribe: samples => whisper.transcribeData(toPcm16(samples), {
         language: 'ar', translate: false, maxThreads: 4, maxContext: 0,
         temperature: 0, temperatureInc: 0,
       }),
