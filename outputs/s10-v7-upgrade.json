@@ -1,0 +1,10 @@
+{
+  "source_commit": "067c6f3c982d37905213d72afbd093086d9fe0f3",
+  "voice_accuracy": "pending owner diagnostic test; previous v6 test detected zero",
+  "install": "ADB install -r Success",
+  "device": "Samsung S10 / Android 12",
+  "version_code": 7,
+  "purpose": "live in-memory capture, VAD, recognition and phrase-match diagnostics",
+  "build_id": "16f012a3-c86d-460d-b137-bc622fd7aabd",
+  "app_launch": "passed"
+}

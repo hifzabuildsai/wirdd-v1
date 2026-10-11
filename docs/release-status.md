@@ -37,6 +37,13 @@ check feedback (audio duration/level, speech windows, decoded utterances and las
 recognized text) to identify capture/VAD/ASR/matching failure. No diagnostic
 audio or transcript is persisted or logged.
 
+Diagnostic v7 source `067c6f3c982d37905213d72afbd093086d9fe0f3`, signed build
+`16f012a3-c86d-460d-b137-bc622fd7aabd`, finished and upgraded on S10 (ADB Success,
+app launch passed). APK ZIP CRC and signing certificate match pass; source CI
+passes 40 tests, typecheck, lint and Android export. Owner live diagnostic test
+and v7 emulator smoke are pending. This candidate adds visibility, not a claimed
+recognition fix.
+
 Owner confirmed v5 microphone listening but no increments after three spaced
 recitations and ten seconds of silence. v5 is not accepted for voice counting.
 Correction source `32c61381d007cfd4479d311ff6cb94ffea2acde5` converts internal
