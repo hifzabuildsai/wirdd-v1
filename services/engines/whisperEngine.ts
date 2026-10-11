@@ -35,7 +35,7 @@ async function loadModels(): Promise<OfflineModels> {
   // not prevent manual sessions or the rest of the app from opening.
   const { initWhisper, initWhisperVad } = await import('whisper.rn/index');
   const whisper = await initWhisper({
-    filePath: require('../../assets/models/ggml-tiny.bin'), useGpu: false, useCoreMLIos: false,
+    filePath: require('../../assets/models/ggml-base-q5_1.bin'), useGpu: false, useCoreMLIos: false,
   });
   try {
     const vad = await initWhisperVad({
@@ -48,7 +48,7 @@ async function loadModels(): Promise<OfflineModels> {
       })).length > 0,
       transcribe: samples => whisper.transcribeData(toPcm16(samples), {
         language: 'ar', translate: false, maxThreads: 4, maxContext: 0,
-        temperature: 0, temperatureInc: 0,
+        temperature: 0, temperatureInc: 0, beamSize: 3,
       }),
       release: async () => { await vad.release(); await whisper.release(); },
     };

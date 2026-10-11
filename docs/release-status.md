@@ -30,6 +30,21 @@ S10 installation/manual durability is confirmed. No uninstall or history deletio
 
 ## Validation
 
+v7 live S10 diagnostics after owner recitations: audio received 120.6 seconds,
+RMS 1.56% at snapshot, 15 speech windows, 7 completed recognitions, counter zero,
+last phrase matches zero. Capture, VAD and ASR execute; the last recognized words
+were incorrect. Recognition accuracy/utterance boundaries need work. Aggregate
+evidence only is recorded; recognized text/audio/screenshots are not committed.
+v7 [native smoke](https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38102938315)
+passed, which does not prove phrase accuracy.
+
+Next candidate switches tiny to checksum-pinned multilingual base Q5_1 and
+three-beam decoding without a phrase prompt or relaxed matching. This is a
+recognition hypothesis to test on S10, with latency/backlog still gated. It also
+fixes permission-modal background transitions cancelling the first voice start:
+no capture occurs until permission resolves, the generation remains current,
+and the app is foreground. 44 automated tests, typecheck and lint pass.
+
 Owner v6 retest: three spaced recitations still produced zero after ten seconds
 of silence. PCM16 correction alone did not resolve physical recognition. v6 is
 not accepted for voice counting. Next candidate adds optional in-memory Voice

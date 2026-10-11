@@ -87,12 +87,13 @@ export default function SessionScreen() {
     void stopVoiceRef.current?.().catch(() => {});
     void stopForegroundService().catch(() => {});
   }, [pauseSession]);
-  const { start, stop, pause, resume, listening, diagnostics } = useVoiceDetection(handleDetect, handleVoiceError);
+  const { start, stop, pause, resume, listening, diagnostics, isRequestingPermission } = useVoiceDetection(handleDetect, handleVoiceError);
   stopVoiceRef.current = stop;
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active' || manual) return;
+      if (isRequestingPermission()) return;
       const session = useSessionStore.getState();
       if (!session.isActive && !startingRef.current) return;
       startupErrorRef.current = 'Voice paused when Wirdd left the foreground.';
@@ -102,7 +103,7 @@ export default function SessionScreen() {
       setNotice('Voice paused because the app was backgrounded or the screen locked. Return here and tap Resume.');
     });
     return () => { subscription.remove(); };
-  }, [manual, pauseSession, stop]);
+  }, [manual, pauseSession, stop, isRequestingPermission]);
 
   useEffect(() => () => {
     // A surviving store session must not claim its destroyed engine is running.

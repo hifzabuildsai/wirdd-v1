@@ -1,8 +1,9 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { AppState, PermissionsAndroid, Platform } from 'react-native';
 import { WhisperEngine } from '../services/engines/whisperEngine';
 import type { VoiceDetectionEngine } from '../services/engines/voiceDetectionEngine';
 import { emptyDiagnostics } from '../services/engines/offlineEngine';
+import { foregroundPermission } from '../services/engines/foregroundPermission';
 
 async function requestMicPermission(): Promise<void> {
   if (Platform.OS !== 'android') throw new Error('Voice sessions require Android.');
@@ -27,6 +28,8 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
   const runningRef = useRef(false);
   const generationRef = useRef(0);
   const pendingRef = useRef<Promise<void> | null>(null);
+  const permissionPromptRef = useRef(false);
+  const isRequestingPermission = useCallback(() => permissionPromptRef.current, []);
   const [listening, setListening] = useState(false);
   const detectRef = useRef(onDetect);
   const errorRef = useRef(onError);
@@ -39,11 +42,11 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
     const generation = ++generationRef.current;
     const ensureCurrent = () => {
       if (generation !== generationRef.current) throw new Error('Microphone start cancelled.');
+      if (AppState.currentState !== 'active') throw new Error('Keep Wirdd open to start voice counting.');
     };
     const operation = (async () => {
+      await foregroundPermission(requestMicPermission, value => { permissionPromptRef.current = value; }, ensureCurrent);
       await engineRef.current!.initialize();
-      ensureCurrent();
-      await requestMicPermission();
       ensureCurrent();
       let failedDuringStartup = false;
       await engineRef.current!.start(
@@ -77,5 +80,5 @@ export function useVoiceDetection(onDetect: (count: number) => void, onError: (m
     void engineRef.current!.destroy();
   }, []);
 
-  return { start, stop, pause, resume, listening, diagnostics };
+  return { start, stop, pause, resume, listening, diagnostics, isRequestingPermission };
 }

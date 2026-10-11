@@ -15,7 +15,7 @@ No backend/payment credentials required. Preview increments versionCode and reta
 
 ## Voice and data flow
 
-The voice hook requests mic permission and starts WhisperEngine. Bundled multilingual Whisper tiny and Silero VAD process 16 kHz PCM from the local WirddAudio Expo module. No Android speech provider or network recognition fallback is used. Models download only at build time, with pinned lengths/SHA-256. The older Android 13 SpeechEngine remains inactive reference code with tests.
+The voice hook requests mic permission and starts WhisperEngine. The next candidate bundles multilingual Whisper base Q5_1 and Silero VAD to process 16 kHz PCM from the local WirddAudio Expo module. v7 diagnostics reached speech detection and recognition, but recognized text did not match the recited phrase; the old tiny model remains unaccepted. No Android speech provider or network recognition fallback is used. Models download only at build time, with pinned lengths/SHA-256. The older Android 13 SpeechEngine remains inactive reference code with tests.
 
 Disjoint utterances finish after one second of silence. Complete results count repetitions once; partial revisions are never counted. Audio/transcript queues are bounded in memory. Backlog pauses with an error instead of silently dropping input. Users should pause briefly and let counts settle before ending. Physical accuracy, VAD boundaries, false positives, latency and battery remain unverified. See [Android 12 candidate](docs/android12-voice-candidate.md).
 

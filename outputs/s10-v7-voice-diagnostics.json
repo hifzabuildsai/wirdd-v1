@@ -1,0 +1,19 @@
+{
+  "device": "Samsung S10 / Android 12",
+  "version_code": 7,
+  "build_id": "16f012a3-c86d-460d-b137-bc622fd7aabd",
+  "source_commit": "067c6f3c982d37905213d72afbd093086d9fe0f3",
+  "owner_requested_test": "three Astaghfirullah recitations, two-second gaps, ten seconds silence",
+  "live_snapshot": {
+    "audio_received_seconds": 120.6,
+    "rms_percent_at_snapshot": 1.56,
+    "speech_windows": 15,
+    "completed_recognitions": 7,
+    "counter": 0,
+    "last_phrase_matches": 0
+  },
+  "interpretation": "capture, speech detection and recognition execute; last recognized words incorrect; model accuracy or utterance boundaries need investigation",
+  "additional_defect": "permission prompt background transition cancels first start; second start succeeds after grant",
+  "voice_accuracy": "failed",
+  "raw_audio_and_recognized_text": "not persisted or committed"
+}
