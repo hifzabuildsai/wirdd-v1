@@ -39,8 +39,9 @@ decoder (its VAD TypeScript comment is misleading). 39 tests, typecheck, lint an
 pass. Signed v6 build `a2e8a796-a185-4998-8821-517abd67e502` finished. APK ZIP CRC,
 SDK/ABI packaging and signing certificate match passed; corrected Hermes export
 passed. See `outputs/candidate-build.json` for the pinned download/hash. Physical
-v6 upgrade is pending USB detection or owner direct install; v6 emulator smoke
-is running. Model accuracy remains unaccepted.
+v6 upgrade and cold launch passed on S10 after restoring USB file transfer.
+The [v6 emulator install/history/microphone lifecycle smoke](https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38101401190)
+passed. Model accuracy remains unaccepted, awaiting owner recitation retest.
 The [v5 emulator microphone start/pause/resume smoke](https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38099174372)
 passed but does not exercise real speech. The older evidence below is historical;
 physical voice recognition still requires a corrected APK and independent tallies.

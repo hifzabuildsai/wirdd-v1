@@ -6,11 +6,12 @@
   "package": "app.wirdd.android",
   "apk_url": "https://expo.dev/artifacts/eas/u2ajYiUXedmUX2vrqGFJIJlUGrV4BUbLUVZdD57o9e0.apk",
   "build_page": "https://expo.dev/accounts/hifza-zafar/projects/wirdd/builds/a2e8a796-a185-4998-8821-517abd67e502",
-  "physical_install": "pending v6 upgrade; S10 currently disconnected",
+  "physical_install": "passed: S10 ADB install -r Success and cold launch; voice accuracy awaiting owner retest",
   "physical_voice_accuracy": "pending PCM16 correction retest; v5 produced zero for three recitations",
   "confirmed_device": "Samsung S10 / Android 12",
   "apk_sha256": "c4248e077c73655c02361d67e1ad245d61bb3858d7233c1ada965d06d0ccbe66",
   "signing_certificate_matches_baseline": true,
   "automated_tests_passed": 39,
-  "expo_doctor": "17/18; Notifee maintenance warning; whisper.rn and local module lack directory metadata"
+  "expo_doctor": "17/18; Notifee maintenance warning; whisper.rn and local module lack directory metadata",
+  "emulator_smoke": "passed https://github.com/hifzabuildsai/wirdd-v1/actions/runs/38101401190"
 }
