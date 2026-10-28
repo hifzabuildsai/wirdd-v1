@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import notifee, { EventType } from '@notifee/react-native';
+import notifee, { AuthorizationStatus } from '@notifee/react-native';
 import {
   buildSessionNotification,
   createSessionChannel,
@@ -18,21 +18,6 @@ let detectionsSinceLastUpdate = 0;
 let lastUpdateTime = 0;
 let updateTimer: ReturnType<typeof setTimeout> | null = null;
 
-// ── Callbacks registered by the session screen ───────────────────────────────
-type SessionCallbacks = {
-  onPause: () => void;
-  onResume: () => void;
-  onEnd: () => void;
-};
-let callbacks: SessionCallbacks | null = null;
-
-export function registerSessionCallbacks(cbs: SessionCallbacks): void {
-  callbacks = cbs;
-}
-
-export function clearSessionCallbacks(): void {
-  callbacks = null;
-}
 
 // ── Foreground service handler (must be called once at app startup) ───────────
 // Registers the headless task that keeps the Android foreground service alive.
@@ -47,32 +32,31 @@ export function registerForegroundServiceHandler(): void {
   }
 }
 
-// ── Notifee background event handler ────────────────────────────────────────
-// Register this at module level in _layout.tsx via:
-//   notifee.onBackgroundEvent(handleBackgroundEvent);
-export async function handleBackgroundEvent({
-  type,
-  detail,
-}: {
-  type: EventType;
-  detail: { pressAction?: { id: string } };
-}): Promise<void> {
-  if (type !== EventType.ACTION_PRESS) return;
-  const actionId = detail.pressAction?.id ?? '';
-  handleAction(actionId);
-}
-
 // ── Public API ───────────────────────────────────────────────────────────────
 
-export async function startForegroundService(count: number): Promise<void> {
-  if (Platform.OS !== 'android') return;
+export async function startForegroundService(count: number): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  // Android 13+ may hide foreground-service notices from the notification
+  // drawer when POST_NOTIFICATIONS is denied. Counting can still continue.
+  const notificationVisible = await notifee.requestPermission()
+    .then(settings => settings.authorizationStatus === AuthorizationStatus.AUTHORIZED)
+    .catch(() => false);
+  await createSessionChannel();
+  await notifee.displayNotification(buildSessionNotification(count, false));
   isRunning = true;
   isPaused = false;
   lastKnownCount = count;
   detectionsSinceLastUpdate = 0;
   lastUpdateTime = Date.now();
-  await createSessionChannel();
-  await notifee.displayNotification(buildSessionNotification(count, false));
+  return notificationVisible;
+}
+
+export async function setNotificationPaused(count: number, paused: boolean): Promise<void> {
+  if (!isRunning) return;
+  isPaused = paused;
+  lastKnownCount = count;
+  clearDebounce();
+  await notifee.displayNotification(buildSessionNotification(count, paused));
 }
 
 export async function stopForegroundService(): Promise<void> {
@@ -80,6 +64,7 @@ export async function stopForegroundService(): Promise<void> {
   isRunning = false;
   isPaused = false;
   clearDebounce();
+  await notifee.stopForegroundService();
   await notifee.cancelNotification(NOTIFICATION_ID);
 }
 
@@ -125,34 +110,4 @@ function clearDebounce(): void {
     updateTimer = null;
   }
   detectionsSinceLastUpdate = 0;
-}
-
-function handleAction(actionId: string): void {
-  switch (actionId) {
-    case 'pause':
-      if (!isRunning || isPaused) return;
-      isPaused = true;
-      clearDebounce();
-      callbacks?.onPause();
-      notifee
-        .displayNotification(buildSessionNotification(lastKnownCount, true))
-        .catch(() => {});
-      break;
-
-    case 'resume':
-      if (!isRunning || !isPaused) return;
-      isPaused = false;
-      lastUpdateTime = Date.now();
-      callbacks?.onResume();
-      notifee
-        .displayNotification(buildSessionNotification(lastKnownCount, false))
-        .catch(() => {});
-      break;
-
-    case 'end':
-      if (!isRunning) return;
-      callbacks?.onEnd();
-      stopForegroundService();
-      break;
-  }
 }

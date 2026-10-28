@@ -5,13 +5,14 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  ScrollView,
   UIManager,
   View,
   LayoutAnimation,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/constants/fonts';
@@ -28,14 +29,31 @@ async function completeOnboarding(router: ReturnType<typeof useRouter>) {
 export default function PermissionScreen() {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const voiceSupported = Platform.OS === 'android';
 
   async function handleAllow() {
-    await Audio.requestPermissionsAsync();
-    await completeOnboarding(router);
+    if (busy) return;
+    setBusy(true);
+    try {
+      const permission = await ExpoSpeechRecognitionModule.requestMicrophonePermissionsAsync();
+      if (!permission.granted) {
+        setError('Microphone permission was denied. Allow it in Android settings later, or continue with manual counting.');
+        return;
+      }
+      await completeOnboarding(router);
+    } catch {
+      setError('Could not request microphone permission. Continue manually and retry from a voice session.');
+    } finally { setBusy(false); }
   }
 
   async function handleSkip() {
-    await completeOnboarding(router);
+    if (busy) return;
+    setBusy(true);
+    try { await completeOnboarding(router); }
+    catch { setError('Could not save setup. Check storage and retry.'); }
+    finally { setBusy(false); }
   }
 
   function toggleExpanded() {
@@ -44,20 +62,22 @@ export default function PermissionScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.iconWrap}>
         <Ionicons name="mic" size={80} color={Colors.gold} />
       </View>
 
-      <Text style={styles.heading}>Wird needs your microphone</Text>
+      <Text style={styles.heading}>{voiceSupported ? 'Wirdd needs your microphone' : 'Count manually on this phone'}</Text>
       <Text style={styles.body}>
-        Wird listens for dhikr on your device.{'\n'}
-        No audio is stored or shared.
+        {voiceSupported
+          ? 'Wirdd processes your voice on this phone using its included offline model. Voice counting is in beta; manual counting works without microphone access.'
+          : 'Voice counting requires Android. Manual counting works without a microphone.'}
       </Text>
 
-      <Pressable style={styles.allowBtn} onPress={handleAllow}>
+      {voiceSupported && <Pressable style={styles.allowBtn} onPress={handleAllow} disabled={busy} accessibilityRole="button">
         <Text style={styles.allowText}>Allow microphone</Text>
-      </Pressable>
+      </Pressable>}
+      {error && <Text style={styles.body} accessibilityRole="alert">{error}</Text>}
 
       {/* How it works */}
       <Pressable style={styles.howRow} onPress={toggleExpanded}>
@@ -72,27 +92,28 @@ export default function PermissionScreen() {
       {expanded && (
         <View style={styles.howContent}>
           <Text style={styles.howText}>
-            Wird uses Porcupine, an on-device wake-word engine. It detects only the specific phrase
-            you choose — no transcription, no recording, no uploads. The microphone is active only
-            during an open session.
+            Wirdd processes microphone audio and Arabic recognition results in memory to count
+            Astaghfirullah. Wirdd does not save raw audio or transcripts, or send them to a server.
+            Voice counting stops when you pause or end a session, leave the app, or lock the screen.
           </Text>
         </View>
       )}
 
-      <Pressable style={styles.skipLink} onPress={handleSkip}>
-        <Text style={styles.skipLinkText}>Not now</Text>
+      <Pressable style={styles.skipLink} onPress={handleSkip} disabled={busy} accessibilityRole="button">
+        <Text style={styles.skipLinkText}>{voiceSupported ? 'Not now · count manually' : 'Continue to manual counting'}</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 32,
     gap: 16,
   },
   iconWrap: {
